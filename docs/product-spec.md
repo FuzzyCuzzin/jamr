@@ -2,14 +2,29 @@
 
 ## What is Jamr?
 
-Jamr is a shared web app for cover bands. It replaces the group chat chaos of managing a band (WhatsApp threads, Google Sheets setlists, texted song requests) with one place that actually understands what a band needs.
+Jamr is a native mobile app for cover bands. It replaces the chaos of group chats,
+Google Sheets setlists, and texted song requests with one app that actually understands
+what a band needs — from learning songs to running a live show.
+
+Jamr targets iOS and Android as first-class experiences, with web as a secondary companion.
 
 ---
 
 ## Who uses it?
 
-- Band members — all treated equally in the MVP (no roles yet)
+- Band members on iOS and Android (primary audience)
+- Occasional web access for reference or admin work
 - Future: band admin role for managing members and permissions
+
+---
+
+## Platform targets
+
+| Platform | Priority | Notes |
+|---|---|---|
+| iOS | Primary | Expo + EAS build |
+| Android | Primary | Expo + EAS build |
+| Web | Secondary | Expo Web — same codebase, no SEO needed |
 
 ---
 
@@ -26,11 +41,11 @@ These are the only features being built in Phase 1. Everything else is future.
 ### 2. Band Setup
 - Create a new band (name, optional description)
 - Each user belongs to one band in the MVP
-- Join a band via invite code (simple string code stored on the band)
+- Join a band via invite code (short random string stored on the band)
 - Future: multiple bands per user, role-based access
 
 ### 3. Song Catalog
-- Add a song with: title, artist, key, BPM, status, notes
+- Add a song: title, artist, key, BPM, status, notes
 - Song statuses: `learning` | `ready` | `performance_ready`
 - View all songs in a list (sorted by title)
 - Filter songs by status
@@ -45,11 +60,11 @@ These are the only features being built in Phase 1. Everything else is future.
 - Delete a setlist
 
 ### 5. Events
-- Create an event with: title, type (rehearsal or gig), date, time, location, notes
+- Create an event: title, type (rehearsal or gig), date, time, location, notes
 - View upcoming events (sorted by date)
 - View past events separately
 - Edit an event
-- Delete an event
+- Delete an event (with confirmation)
 
 ---
 
@@ -59,7 +74,7 @@ Do not build these yet. They are tracked in the roadmap.
 
 - In-app chat or messaging
 - Polls and voting
-- Member availability per event
+- Member availability / RSVP per event
 - Rehearsal logs and notes
 - Practice tasks per member
 - Lyrics viewer or auto-scroll
@@ -67,18 +82,48 @@ Do not build these yet. They are tracked in the roadmap.
 - Rehearsal recording uploads
 - Shareable event links (public pages)
 - Media or promo management
-- Mobile app
 
 ---
 
 ## Design Principles
 
-- **Mobile-first layout** — responsive Tailwind, works on phone screens
-- **Simple navigation** — top nav on desktop, accessible on mobile
-- **No heavy UI libraries** — plain Tailwind components only
-- **Empty states** — every list page shows a helpful message when empty
+- **Native feel** — use platform conventions: bottom tab bar, stack navigation, native inputs
+- **Mobile-first layout** — designed for phone screens; web is a bonus, not the target
+- **Empty states** — every list screen shows a helpful message when empty
 - **Loading + error states** — every form and data fetch handles these
 - **Confirmation before delete** — never delete without asking
+
+---
+
+## Product Areas (full scope, all phases)
+
+These are the product areas Jamr will cover over time. Phase 1 is the foundation.
+
+### Planning tools
+- Song catalog / repertoire manager
+- Setlist builder with ordering
+- Song details: BPM, key, notes, lyrics, status
+- Shared band calendar
+- Band member availability
+- Rehearsal and gig planning
+
+### Rehearsal / performance tools
+- Rehearsal log and notes
+- Practice tasks by member
+- Rehearsal recordings manager
+- Lyrics viewer with auto-scroll and adjustable font size
+- Performance mode (full-screen teleprompter)
+
+### Communication
+- In-app band chat
+- Inline polls
+- Ability to convert chat items into structured app items
+
+### Events / promo
+- Gig and rehearsal event management
+- Member RSVP per event
+- Shareable public event links
+- Future: media library, promo manager
 
 ---
 
@@ -86,9 +131,10 @@ Do not build these yet. They are tracked in the roadmap.
 
 | Layer | Tool | Why |
 |---|---|---|
-| Framework | Next.js 15 (App Router) | Industry standard, great Vercel integration |
+| Framework | Expo (React Native) | Cross-platform iOS, Android, Web from one codebase |
+| Router | Expo Router | File-system routing — same model as Next.js App Router |
 | Language | TypeScript | Catches errors before runtime |
-| Styling | Tailwind CSS | Fast, consistent, no separate CSS files |
-| Database + Auth | Supabase | Hosted Postgres + auth in one, free tier |
-| Hosting | Vercel | Made by the Next.js team, free tier |
+| Styling | React Native StyleSheet | Standard, conventional, no extra dependencies |
+| Database + Auth | Supabase | Hosted Postgres + auth in one, generous free tier |
+| Builds | EAS (Expo Application Services) | App Store + Play Store builds without Xcode/Android Studio |
 | Version control | GitHub | Standard, free |
