@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { useBand } from '@/lib/BandContext'
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -10,10 +11,17 @@ function tabIcon(name: IoniconName, focusedName: IoniconName) {
 }
 
 export default function TabLayout() {
+  const { band } = useBand()
+
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        headerShown: true,
+        headerTitle: band?.name ?? 'Jamr',
+        headerTitleAlign: 'center',
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17, color: '#111827' },
+        headerShadowVisible: false,
         tabBarActiveTintColor: '#2563eb',
         tabBarInactiveTintColor: '#9ca3af',
         tabBarStyle: {
