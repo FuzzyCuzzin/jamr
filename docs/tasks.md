@@ -12,12 +12,12 @@ Mark tasks with [x] as you finish them.
 - [x] Install `@supabase/supabase-js` and `@supabase/ssr`
 - [x] Create `src/lib/supabase/client.ts` (browser Supabase client)
 - [x] Create `src/lib/supabase/server.ts` (server Supabase client)
-- [x] Create `src/middleware.ts` (session refresh middleware)
+- [x] Create `src/proxy.ts` (session refresh proxy — renamed from middleware in Next.js 16)
 - [x] Create `.env.local.example`
 - [x] Initialize git and create first commit
-- [ ] Create a Supabase project at supabase.com
-- [ ] Copy `.env.local.example` to `.env.local` and fill in your keys
-- [ ] Push repo to GitHub
+- [x] Create a Supabase project at supabase.com
+- [x] Copy `.env.local.example` to `.env.local` and fill in your keys
+- [x] Push repo to GitHub
 - [ ] (Optional) Connect GitHub repo to Vercel for preview deployments
 
 ---
@@ -33,7 +33,7 @@ Mark tasks with [x] as you finish them.
 - [ ] Wire up Supabase `signInWithPassword` on login
 - [ ] Wire up Supabase `signUp` on signup
 - [ ] Add logout button (calls `supabase.auth.signOut()`)
-- [ ] Update `middleware.ts` to redirect unauthenticated users to `/login`
+- [ ] Update `src/proxy.ts` to redirect unauthenticated users to `/login`
 - [ ] Test: sign up → auto-redirects → creates profile row in Supabase
 
 ---
