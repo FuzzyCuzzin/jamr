@@ -3,10 +3,6 @@
 This file documents the Supabase (PostgreSQL) database tables.
 Run these SQL statements in your Supabase SQL editor to create the schema.
 
-The database is entirely managed by Supabase and is independent of the app platform
-(Next.js, Expo, or anything else). All SQL here is reusable regardless of what the
-app is built with.
-
 ---
 
 ## How Supabase auth works
@@ -18,6 +14,30 @@ avatars, and anything else we need.
 
 In Expo (React Native), Supabase uses AsyncStorage to persist the session across app restarts.
 There is no server client — just one browser-style client used everywhere.
+
+---
+
+## RLS helper function
+
+Every table policy uses this function instead of querying `band_members` directly.
+This avoids infinite recursion in self-referential RLS policies.
+
+```sql
+create or replace function public.get_my_band_ids()
+returns setof uuid
+language sql
+security definer
+stable
+as $$
+  select band_id from public.band_members where user_id = auth.uid()
+$$;
+```
+
+**Use this in every policy that checks band membership:**
+```sql
+-- Pattern used everywhere
+using (band_id in (select public.get_my_band_ids()))
+```
 
 ---
 
@@ -72,8 +92,7 @@ create table public.bands (
 );
 ```
 
-> `invite_code` is a short random string (e.g. `a3f9b2c1`) used for joining a band
-> without email invites.
+Status: **already created in Supabase.**
 
 ---
 
@@ -92,6 +111,8 @@ create table public.band_members (
 );
 ```
 
+Status: **already created in Supabase.**
+
 ---
 
 ### songs
@@ -100,20 +121,116 @@ The song catalog. Each song belongs to a band.
 
 ```sql
 create table public.songs (
+  id                uuid primary key default gen_random_uuid(),
+  band_id           uuid not null references public.bands(id) on delete cascade,
+  title             text not null,
+  artist            text,
+  key               text,
+  bpm               integer,
+  status            text not null default 'learning',
+                    -- 'learning' | 'ready' | 'performance_ready'
+  status_changed_at timestamptz,  -- set whenever status is updated; used for "songs learned this week"
+  notes             text,
+  created_by        uuid references public.profiles(id),
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
+);
+```
+
+**Add `status_changed_at` to existing table:**
+```sql
+alter table public.songs add column if not exists status_changed_at timestamptz;
+```
+
+**Dashboard query — songs learned (ready or better), with weekly delta:**
+```sql
+select
+  count(*) as total,
+  count(*) filter (
+    where status_changed_at >= now() - interval '7 days'
+  ) as this_week
+from public.songs
+where band_id = $band_id
+  and status in ('ready', 'performance_ready');
+```
+
+> The app must set `status_changed_at = now()` whenever it updates the `status` field.
+
+Status: **already created. Add status_changed_at column.**
+
+---
+
+### events
+
+Rehearsals and gigs.
+
+```sql
+create table public.events (
   id         uuid primary key default gen_random_uuid(),
   band_id    uuid not null references public.bands(id) on delete cascade,
   title      text not null,
-  artist     text,
-  key        text,     -- e.g. 'C', 'Am', 'F#'
-  bpm        integer,
-  status     text not null default 'learning',
-             -- 'learning' | 'ready' | 'performance_ready'
+  type       text not null default 'rehearsal',  -- 'rehearsal' | 'gig'
+  status     text not null default 'scheduled',  -- 'scheduled' | 'completed' | 'canceled'
+  date       timestamptz not null,
+  location   text,
   notes      text,
+  revenue    numeric,     -- optional; gig earnings in dollars; null if not tracked
   created_by uuid references public.profiles(id),
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  created_at timestamptz default now()
 );
 ```
+
+**Add new columns to existing table:**
+```sql
+alter table public.events add column if not exists status text not null default 'scheduled';
+alter table public.events add column if not exists revenue numeric;
+```
+
+**Dashboard query — earnings this month:**
+```sql
+select coalesce(sum(revenue), 0) as earnings_this_month
+from public.events
+where band_id = $band_id
+  and type = 'gig'
+  and status = 'completed'
+  and date >= date_trunc('month', now())
+  and date <  date_trunc('month', now()) + interval '1 month';
+```
+
+**Dashboard query — gigs played all time:**
+```sql
+select count(*) as gigs_played
+from public.events
+where band_id = $band_id
+  and type = 'gig'
+  and status = 'completed';
+```
+
+**Dashboard query — next gig:**
+```sql
+select id, title, date, location
+from public.events
+where band_id = $band_id
+  and type = 'gig'
+  and status = 'scheduled'
+  and date >= now()
+order by date asc
+limit 1;
+```
+
+**Dashboard query — next rehearsal:**
+```sql
+select id, title, date, location
+from public.events
+where band_id = $band_id
+  and type = 'rehearsal'
+  and status = 'scheduled'
+  and date >= now()
+order by date asc
+limit 1;
+```
+
+Status: **already created. Add status and revenue columns.**
 
 ---
 
@@ -152,70 +269,95 @@ create table public.setlist_songs (
 
 ---
 
-### events
+### practice_tasks
 
-Rehearsals and gigs.
+Tasks assigned to individual band members. Used by the dashboard checklist widget.
 
 ```sql
-create table public.events (
-  id         uuid primary key default gen_random_uuid(),
-  band_id    uuid not null references public.bands(id) on delete cascade,
-  title      text not null,
-  type       text not null default 'rehearsal',  -- 'rehearsal' | 'gig'
-  date       timestamptz not null,
-  location   text,
-  notes      text,
-  created_by uuid references public.profiles(id),
-  created_at timestamptz default now()
+create table public.practice_tasks (
+  id          uuid primary key default gen_random_uuid(),
+  band_id     uuid not null references public.bands(id) on delete cascade,
+  assigned_to uuid references public.profiles(id),  -- null = unassigned / whole band
+  song_id     uuid references public.songs(id),      -- optional song link
+  description text not null,
+  completed   boolean not null default false,
+  created_by  uuid references public.profiles(id),
+  created_at  timestamptz default now()
 );
+```
+
+**RLS policies:**
+```sql
+alter table public.practice_tasks enable row level security;
+
+create policy "Band members can view tasks"
+  on public.practice_tasks for select
+  using (band_id in (select public.get_my_band_ids()));
+
+create policy "Band members can insert tasks"
+  on public.practice_tasks for insert
+  with check (band_id in (select public.get_my_band_ids()));
+
+create policy "Band members can update tasks"
+  on public.practice_tasks for update
+  using (band_id in (select public.get_my_band_ids()));
+
+create policy "Band members can delete tasks"
+  on public.practice_tasks for delete
+  using (band_id in (select public.get_my_band_ids()));
+```
+
+**Dashboard query — my tasks:**
+```sql
+select id, description, completed, song_id
+from public.practice_tasks
+where band_id = $band_id
+  and (assigned_to = auth.uid() or assigned_to is null)
+order by completed asc, created_at asc;
+```
+
+---
+
+## Dashboard query — band members with display names
+
+```sql
+select bm.user_id, bm.role, p.display_name, p.avatar_url
+from public.band_members bm
+join public.profiles p on p.id = bm.user_id
+where bm.band_id = $band_id
+order by bm.joined_at asc;
 ```
 
 ---
 
 ## Row Level Security (RLS)
 
-Every table must have RLS enabled. The rule: **a user can only see and modify data
-for bands they belong to.**
-
-Enable RLS on each table:
+Every table must have RLS enabled. The pattern for all band-scoped tables:
 
 ```sql
-alter table public.profiles      enable row level security;
-alter table public.bands         enable row level security;
-alter table public.band_members  enable row level security;
-alter table public.songs         enable row level security;
-alter table public.setlists      enable row level security;
-alter table public.setlist_songs enable row level security;
-alter table public.events        enable row level security;
+-- Enable RLS
+alter table public.<table> enable row level security;
+
+-- Select: band members only
+create policy "Band members can view <table>"
+  on public.<table> for select
+  using (band_id in (select public.get_my_band_ids()));
+
+-- Insert: band members only
+create policy "Band members can insert <table>"
+  on public.<table> for insert
+  with check (band_id in (select public.get_my_band_ids()));
+
+-- Update: band members only
+create policy "Band members can update <table>"
+  on public.<table> for update
+  using (band_id in (select public.get_my_band_ids()));
+
+-- Delete: band members only
+create policy "Band members can delete <table>"
+  on public.<table> for delete
+  using (band_id in (select public.get_my_band_ids()));
 ```
-
-The pattern for all policies — only band members can access the data:
-
-```sql
--- Example: only band members can view songs
-create policy "Band members can view songs"
-  on public.songs for select
-  using (
-    band_id in (
-      select band_id from public.band_members
-      where user_id = auth.uid()
-    )
-  );
-```
-
-Policies for `profiles` are simpler — users can read any profile but only edit their own:
-
-```sql
-create policy "Profiles are publicly readable"
-  on public.profiles for select
-  using (true);
-
-create policy "Users can update own profile"
-  on public.profiles for update
-  using (auth.uid() = id);
-```
-
-Write the full set of policies for each table as you build each feature step.
 
 ---
 
@@ -235,7 +377,7 @@ create table public.messages (
 );
 ```
 
-### polls
+### polls / poll_options / poll_votes
 
 ```sql
 create table public.polls (
@@ -246,29 +388,21 @@ create table public.polls (
   closes_at  timestamptz,
   created_at timestamptz default now()
 );
-```
 
-### poll_options
-
-```sql
 create table public.poll_options (
   id       uuid primary key default gen_random_uuid(),
   poll_id  uuid not null references public.polls(id) on delete cascade,
   label    text not null,
   position integer not null default 0
 );
-```
 
-### poll_votes
-
-```sql
 create table public.poll_votes (
-  id         uuid primary key default gen_random_uuid(),
-  poll_id    uuid not null references public.polls(id) on delete cascade,
-  option_id  uuid not null references public.poll_options(id) on delete cascade,
-  user_id    uuid not null references public.profiles(id),
+  id        uuid primary key default gen_random_uuid(),
+  poll_id   uuid not null references public.polls(id) on delete cascade,
+  option_id uuid not null references public.poll_options(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id),
   created_at timestamptz default now(),
-  unique(poll_id, user_id)  -- one vote per user per poll
+  unique(poll_id, user_id)
 );
 ```
 
@@ -278,17 +412,10 @@ create table public.poll_votes (
 
 Add these when starting Phase 3. Do not create them yet.
 
-**Add lyrics to songs (ALTER, not a new table):**
-
 ```sql
+-- Lyrics (alter existing table)
 alter table public.songs add column lyrics text;
-```
 
-### rehearsal_logs
-
-One log per event. Captures what happened at a rehearsal or gig.
-
-```sql
 create table public.rehearsal_logs (
   id         uuid primary key default gen_random_uuid(),
   event_id   uuid not null references public.events(id) on delete cascade,
@@ -299,48 +426,11 @@ create table public.rehearsal_logs (
 );
 ```
 
-### practice_tasks
-
-Tasks assigned to individual band members.
-
-```sql
-create table public.practice_tasks (
-  id           uuid primary key default gen_random_uuid(),
-  band_id      uuid not null references public.bands(id) on delete cascade,
-  assigned_to  uuid references public.profiles(id),
-  song_id      uuid references public.songs(id),
-  description  text not null,
-  completed    boolean not null default false,
-  created_by   uuid references public.profiles(id),
-  created_at   timestamptz default now()
-);
-```
-
-### rehearsal_recordings
-
-Audio/video recordings stored in Supabase Storage.
-
-```sql
-create table public.rehearsal_recordings (
-  id          uuid primary key default gen_random_uuid(),
-  band_id     uuid not null references public.bands(id) on delete cascade,
-  event_id    uuid references public.events(id),
-  title       text not null,
-  storage_path text not null,  -- path in Supabase Storage bucket
-  created_by  uuid references public.profiles(id),
-  created_at  timestamptz default now()
-);
-```
-
 ---
 
 ## Phase 4 Tables — Events & Promo
 
 Add these when starting Phase 4. Do not create them yet.
-
-### event_rsvp
-
-Member availability per event.
 
 ```sql
 create table public.event_rsvp (

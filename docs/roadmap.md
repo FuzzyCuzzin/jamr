@@ -5,79 +5,78 @@
 ## Phase 1 — Foundation (MVP)
 
 **Goal:** A band can sign in, set up their band, manage their song catalog, build setlists,
-and track upcoming events. This is the minimum that makes Jamr worth opening.
+track upcoming events, and see a real-time snapshot of their band on the dashboard.
 
-**Status:** In progress (transitioning to Expo)
+**Status:** In progress
 
-### Step 0 — Project Scaffold
-- [ ] Replace Next.js scaffold with Expo + TypeScript template
-- [ ] Install Supabase client + AsyncStorage
-- [ ] Configure Expo Router
-- [ ] Set up `.env` with Supabase URL and anon key
-- [ ] Verify app runs on iOS simulator, Android emulator, and web
+### Step 0 — Project Scaffold ✓
+- [x] Replace Next.js scaffold with Expo + TypeScript template
+- [x] Install Supabase client + AsyncStorage
+- [x] Configure Expo Router
+- [x] Set up `.env` with Supabase URL and anon key
 
-### Step 1 — Authentication
-- [ ] Verify profiles table + trigger still exist in Supabase
-- [ ] Login screen (email + password)
-- [ ] Signup screen (display name + email + password)
-- [ ] Wire up Supabase `signInWithPassword`
-- [ ] Wire up Supabase `signUp` (with display_name in metadata)
-- [ ] Logout (accessible from settings)
-- [ ] Protect all main routes — redirect unauthenticated users to login
-- [ ] Handle auth state changes (session persistence via AsyncStorage)
-- [ ] Test: sign up → profile created → redirected to app → sign out → redirected to login
+### Step 1 — Authentication ✓
+- [x] Login screen (email + password)
+- [x] Signup screen (display name + email + password)
+- [x] Protect all main routes — redirect unauthenticated users to login
+- [x] Handle auth state changes (session persistence via AsyncStorage)
 
-### Step 2 — Band Setup
-- [ ] Run `bands` and `band_members` SQL in Supabase
-- [ ] Enable RLS on both tables and add policies
-- [ ] Create band screen (name + description)
-- [ ] Join band screen (enter invite code)
-- [ ] Auto-add creator as admin in `band_members`
-- [ ] Auto-add joiner as member in `band_members`
-- [ ] Show band name in app header / tab bar
-- [ ] Redirect users with no band to onboarding (create or join)
-- [ ] Test: create band → see name → share invite code → second user joins
+### Step 2 — Band Setup ✓
+- [x] bands and band_members tables + RLS
+- [x] Create band screen (name + description)
+- [x] Join band screen (enter invite code)
+- [x] Show band name in app header
+- [x] Redirect users with no band to onboarding
 
-### Step 3 — Song Catalog
-- [ ] Run `songs` SQL in Supabase
-- [ ] Enable RLS on `songs` and add policies
-- [ ] Songs list screen (sorted by title)
-- [ ] Add song form (title, artist, key, BPM, status, notes)
-- [ ] Edit song form (pre-filled)
-- [ ] Delete song with confirmation
-- [ ] Filter songs by status (all / learning / ready / performance_ready)
-- [ ] Empty state: "No songs yet — add your first one"
-- [ ] Test: add → edit → delete → filter
+### Step 3 — Song Catalog ✓
+- [x] songs table + RLS
+- [x] Songs list screen with filter chips and status badges
+- [x] Add song form (title, artist, key, BPM, status, notes)
+- [x] Edit and delete song
 
 ### Step 4 — Setlist Builder
 - [ ] Run `setlists` and `setlist_songs` SQL in Supabase
-- [ ] Enable RLS and add policies
+- [ ] Enable RLS and add policies (use get_my_band_ids())
 - [ ] Setlists list screen
 - [ ] Create setlist form (name only)
 - [ ] Setlist detail screen — songs in order
 - [ ] Add songs to setlist (pick from catalog)
-- [ ] Move song up / down (updates `position`)
+- [ ] Move song up / down (updates position)
 - [ ] Remove song from setlist
 - [ ] Delete setlist
-- [ ] Empty states on list and detail screens
 - [ ] Test: create → add songs → reorder → remove → delete
 
 ### Step 5 — Events
 - [ ] Run `events` SQL in Supabase
-- [ ] Enable RLS and add policies
-- [ ] Events list screen (upcoming + past)
+- [ ] Enable RLS and add policies (use get_my_band_ids())
+- [ ] Add `status` column (scheduled / completed / canceled)
+- [ ] Add `revenue` column (nullable numeric, for gigs)
+- [ ] Events list screen (upcoming + past sections)
 - [ ] Create event form (title, type, date, location, notes)
-- [ ] Edit event form
+- [ ] Edit event form (include marking as completed)
 - [ ] Delete event with confirmation
-- [ ] Empty state: "No upcoming events — schedule one"
-- [ ] Test: create rehearsal → edit → create gig → check past/upcoming split
+- [ ] Test: create rehearsal → create gig → mark gig completed → check past/upcoming split
 
-### Step 6 — Polish + Ship
+### Step 6 — Dashboard
+- [ ] Add `status_changed_at` column to songs (track when status changes)
+- [ ] Create `practice_tasks` table + RLS
+- [ ] Add Dashboard tab to tab bar (center position)
+- [ ] Dashboard screen layout
+- [ ] Metrics grid: Earnings, Songs Learned, Repertoire, Gigs Played
+- [ ] Band Members row (avatars with initials)
+- [ ] Next Gig card
+- [ ] Next Rehearsal card
+- [ ] Practice Checklist (current user's tasks, toggle complete, add new)
+- [ ] Wire all queries to Supabase
+- [ ] Set Dashboard as the default landing tab
+- [ ] Test: full dashboard loads correctly, checklist toggles work
+
+### Step 7 — Polish + Ship
 - [ ] Test on physical iOS and Android devices via EAS build
-- [ ] Review all screens on different screen sizes (small phone to tablet)
-- [ ] Add consistent loading indicators
-- [ ] Add consistent error messages on form failures
-- [ ] Verify all empty states are in place
+- [ ] Review all screens on different screen sizes
+- [ ] Consistent loading indicators everywhere
+- [ ] Consistent error messages on all form failures
+- [ ] All empty states in place
 - [ ] Set up EAS project for builds
 
 ---
@@ -93,7 +92,7 @@ Phase 1 gives them that reason.
 **Status:** Not started. Begin after Phase 1 ships.
 
 - [ ] Read Supabase Realtime docs before starting
-- [ ] Run Phase 2 SQL (`messages`, `polls`, `poll_options`, `poll_votes`)
+- [ ] Run Phase 2 SQL (messages, polls, poll_options, poll_votes)
 - [ ] Enable RLS on all Phase 2 tables
 - [ ] Band chat: real-time message list (Supabase Realtime subscription)
 - [ ] Band chat: send a message
@@ -101,7 +100,7 @@ Phase 1 gives them that reason.
 - [ ] Polls: create a poll with options
 - [ ] Polls: vote (one vote per user per poll)
 - [ ] Polls: view results
-- [ ] Convert chat message → song idea or task (manual action)
+- [ ] Convert chat message → song idea or task
 
 ---
 
@@ -112,13 +111,12 @@ following along live.
 
 **Status:** Not started.
 
-- [ ] Add `lyrics` column to `songs` table
+- [ ] Add lyrics column to songs table
 - [ ] Lyrics viewer: full-screen display for a song
 - [ ] Lyrics viewer: auto-scroll at adjustable speed
 - [ ] Lyrics viewer: adjustable font size
 - [ ] Rehearsal log: create a log entry per event
 - [ ] Rehearsal log: notes and songs covered
-- [ ] Practice tasks: assign to a band member, mark complete
 - [ ] Recordings: upload audio/video (Supabase Storage)
 - [ ] Recordings: list and play recordings
 
@@ -145,8 +143,9 @@ Not scheduled. Tracked here so they don't get lost.
 
 - Performance mode: full-screen teleprompter during a live show
 - Tempo trainer / click track built into song detail
-- Song request form (public-facing, like a tip jar for song suggestions)
+- Song request form (public-facing)
 - Venue contacts list
 - Set timer that counts down during a performance
 - Push notifications for new events or chat messages
 - Offline-first sync (cached songs + setlists without a connection)
+- Dashboard trends: charts over time for earnings, repertoire growth

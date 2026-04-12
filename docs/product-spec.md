@@ -28,6 +28,22 @@ Jamr targets iOS and Android as first-class experiences, with web as a secondary
 
 ---
 
+## Navigation
+
+The app uses a bottom tab bar with five tabs:
+
+| Tab | Route | Description |
+|---|---|---|
+| Songs | `/(tabs)/songs` | Song catalog |
+| Setlists | `/(tabs)/setlists` | Setlist builder |
+| Dashboard | `/(tabs)/dashboard` | Band home screen (default landing tab) |
+| Events | `/(tabs)/events` | Rehearsals and gigs |
+| Settings | `/(tabs)/settings` | Account and band info |
+
+**Dashboard is the default landing tab.** After login and band setup, the user lands on Dashboard, not Songs.
+
+---
+
 ## MVP — Phase 1 Scope
 
 These are the only features being built in Phase 1. Everything else is future.
@@ -66,6 +82,47 @@ These are the only features being built in Phase 1. Everything else is future.
 - Edit an event
 - Delete an event (with confirmation)
 
+### 6. Dashboard
+The Dashboard is the main landing screen after login. It surfaces a high-level snapshot
+of the band's current state and upcoming activity.
+
+#### Band Header
+- Band name (large, prominent)
+- "Welcome back" label above
+
+#### Metrics Grid
+Four metric cards arranged in a 2×2 grid:
+
+| Metric | Source | Notes |
+|---|---|---|
+| Earnings (this month) | `sum(events.revenue)` where type=gig, status=completed, date in current month | Shows $0 until gig revenue is recorded |
+| Songs Learned | `count(songs)` where status in (ready, performance\_ready) | Shows weekly delta: "+N this week" based on status\_changed\_at |
+| Repertoire | `count(songs)` for the band | Total songs regardless of status |
+| Gigs Played | `count(events)` where type=gig, status=completed | All-time count |
+
+#### Band Members
+- Horizontal scrollable list of member avatars
+- Each avatar: colored circle with the member's initial
+- "+" button at the end opens the invite code sheet (shows the band's invite code)
+
+#### Next Gig Card
+- Queries the earliest upcoming event where `type = 'gig'` and `status = 'scheduled'` and `date >= now()`
+- Shows: date/time (formatted), venue/location
+- Includes a "Setlist" button that navigates to the linked setlist (if one is associated)
+- If no upcoming gig: shows "No gigs scheduled" placeholder
+
+#### Next Rehearsal Card
+- Queries the earliest upcoming event where `type = 'rehearsal'` and `status = 'scheduled'` and `date >= now()`
+- Shows: date/time (formatted), location
+- If no upcoming rehearsal: shows "No rehearsals scheduled" placeholder
+
+#### Practice Checklist
+- Shows practice tasks assigned to the currently signed-in user (`assigned_to = auth.uid()`)
+- Each task: checkbox + description text
+- Completed tasks show strikethrough text
+- "+" button to add a new task (description only, no song link in MVP)
+- Filtering: show incomplete tasks first, then completed
+
 ---
 
 ## Out of Scope for Phase 1
@@ -76,7 +133,6 @@ Do not build these yet. They are tracked in the roadmap.
 - Polls and voting
 - Member availability / RSVP per event
 - Rehearsal logs and notes
-- Practice tasks per member
 - Lyrics viewer or auto-scroll
 - Live performance mode
 - Rehearsal recording uploads
@@ -92,12 +148,19 @@ Do not build these yet. They are tracked in the roadmap.
 - **Empty states** — every list screen shows a helpful message when empty
 - **Loading + error states** — every form and data fetch handles these
 - **Confirmation before delete** — never delete without asking
+- **Dashboard as home** — the band dashboard is the entry point, not a list screen
 
 ---
 
 ## Product Areas (full scope, all phases)
 
 These are the product areas Jamr will cover over time. Phase 1 is the foundation.
+
+### Dashboard
+- Band snapshot: earnings, repertoire size, gigs played
+- Upcoming gig and rehearsal cards
+- Practice checklist per member
+- Band member roster with avatars
 
 ### Planning tools
 - Song catalog / repertoire manager
