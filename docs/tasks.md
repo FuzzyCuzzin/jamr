@@ -5,7 +5,7 @@ Mark tasks with [x] as you finish them.
 
 ---
 
-## Step 0 — Project Scaffold
+## Step 0 — Project Scaffold ✓
 
 Replace the Next.js scaffold with Expo + Expo Router. The Supabase project
 (tables, auth config, API keys) is already set up and is not touched here.
@@ -22,8 +22,8 @@ you can recover any file with: `git checkout v0-nextjs-scaffold -- src/`
 
 ### Prepare the environment file
 
-- [ ] Rename `.env.local` → `.env`
-- [ ] Update the key prefixes inside `.env`:
+- [x] Rename `.env.local` → `.env`
+- [x] Update the key prefixes inside `.env`:
   ```
   EXPO_PUBLIC_SUPABASE_URL=your-project-url
   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
@@ -32,31 +32,31 @@ you can recover any file with: `git checkout v0-nextjs-scaffold -- src/`
 
 ### Delete the Next.js scaffold
 
-- [ ] Delete `src/`
-- [ ] Delete `next.config.ts`
-- [ ] Delete `node_modules/`
-- [ ] Delete `public/` (if it exists)
-- [ ] Delete `.next/` (if it exists)
+- [x] Delete `src/`
+- [x] Delete `next.config.ts`
+- [x] Delete `node_modules/`
+- [x] Delete `public/`
+- [x] Delete `.next/`
 
 ### Scaffold Expo
 
-- [ ] Run:
+- [x] Run:
   ```bash
   npx create-expo-app@latest .
   ```
   > The `.` means "use the current directory." No `--template` flag — the default
   > template includes Expo Router and TypeScript out of the box.
 
-- [ ] Run whatever install command it suggests (usually `npx expo install`)
+- [x] Run whatever install command it suggests (usually `npx expo install`)
 
 ### Add Supabase
 
-- [ ] Run:
+- [x] Run:
   ```bash
   npx expo install @supabase/supabase-js @react-native-async-storage/async-storage
   ```
 
-- [ ] Create `lib/supabase.ts`:
+- [x] Create `lib/supabase.ts`:
   ```typescript
   import AsyncStorage from '@react-native-async-storage/async-storage'
   import { createClient } from '@supabase/supabase-js'
@@ -79,25 +79,25 @@ you can recover any file with: `git checkout v0-nextjs-scaffold -- src/`
 
 ### Verify and commit
 
-- [ ] Run `npx expo start`
-- [ ] Verify the app opens on iOS simulator — press `i`
+- [x] Run `npx expo start`
+- [x] Verify the app opens on iOS simulator — press `i`
 - [ ] Verify the app opens on Android emulator — press `a`
 - [ ] Verify the app opens in the browser — press `w`
-- [ ] Update `AGENTS.md` to remove the Next.js-specific note about `node_modules/next/dist/docs/`
-- [ ] Commit: `chore: scaffold Expo + Expo Router, replace Next.js`
+- [x] Update `AGENTS.md` to remove the Next.js-specific note
+- [x] Commit: `chore: scaffold Expo + Expo Router, replace Next.js`
 
 ---
 
-## Step 1 — Authentication
+## Step 1 — Authentication ✓
 
 **Why first:** Every screen needs to know who the user is. Auth must work before anything else.
 
 ### Supabase (already done — verify these exist)
 
-- [ ] `profiles` table exists in Supabase
-- [ ] `handle_new_user` trigger exists (auto-creates profile on signup)
-- [ ] RLS enabled on `profiles`
-- [ ] Profile policies exist:
+- [x] `profiles` table exists in Supabase
+- [x] `handle_new_user` trigger exists (auto-creates profile on signup)
+- [x] RLS enabled on `profiles`
+- [x] Profile policies exist:
   ```sql
   create policy "Profiles are publicly readable"
     on public.profiles for select using (true);
@@ -108,57 +108,48 @@ you can recover any file with: `git checkout v0-nextjs-scaffold -- src/`
 
 ### App — auth gate
 
-- [ ] Create `app/_layout.tsx` — root layout
-  - On mount: call `supabase.auth.getSession()` to check for an existing session
-  - Subscribe to `supabase.auth.onAuthStateChange()` for sign-in/sign-out events
-  - Store the session in local state
-  - Render `<Slot />` (Expo Router's way of rendering the matched child screen)
-  - Pass session state down via a React Context so any screen can read it
+- [x] Create `app/_layout.tsx` — root layout
+  - On mount: calls `supabase.auth.getSession()` to check for an existing session
+  - Subscribes to `supabase.auth.onAuthStateChange()` for sign-in/sign-out events
+  - Shows a blank screen while loading (prevents flash of wrong content)
+  - No session + not on auth screen → `router.replace('/(auth)/login')`
+  - Session + on auth screen → `router.replace('/(tabs)/songs')`
 
-- [ ] Create `app/(auth)/_layout.tsx` — auth group layout
-  - Plain layout: no tab bar, no header
-  - This wraps the login and signup screens
+- [x] Create `app/(auth)/_layout.tsx` — plain Stack for auth screens (no tab bar)
 
 ### App — screens
 
-- [ ] Create `app/(auth)/login.tsx`
+- [x] Create `app/(auth)/login.tsx`
   - Email + password inputs
   - "Sign in" button → calls `supabase.auth.signInWithPassword({ email, password })`
-  - Show error message on failure
+  - Error message on failure
   - Link to signup screen
-  - On success: root layout detects session change and redirects to main app
+  - On success: root layout detects session change and redirects automatically
 
-- [ ] Create `app/(auth)/signup.tsx`
+- [x] Create `app/(auth)/signup.tsx`
   - Display name + email + password inputs
-  - "Create account" button → calls `supabase.auth.signUp({ email, password, options: { data: { display_name } } })`
-  - Show error on failure
-  - If email confirmation is required: show "Check your email" message
+  - "Create account" button → calls `supabase.auth.signUp()` with `display_name` in metadata
+  - Error message on failure
+  - "Check your email" message if confirmation is required
   - Link to login screen
 
-- [ ] Add logout to `app/(app)/settings/index.tsx` (stub screen is fine at this point)
-  - Button calls `supabase.auth.signOut()`
+- [x] Create `app/(tabs)/settings/index.tsx`
+  - Shows signed-in email address
+  - "Sign out" button → calls `supabase.auth.signOut()`
   - Root layout detects session change and redirects to login
 
-### Routing logic
+- [x] Create `app/(tabs)/_layout.tsx` — 4-tab navigator
+  - Tabs: Songs, Setlists, Events, Settings (with Ionicons)
 
-The root layout `app/_layout.tsx` is the auth gate. The pattern:
-
-```
-No session  →  redirect to /(auth)/login
-Session, no band  →  redirect to /band/new   ← handled in Step 2
-Session, has band  →  render /(app)/ tabs
-```
-
-Use Expo Router's `<Redirect />` component or `router.replace()` inside a `useEffect`
-that watches the session state.
+- [x] Create placeholder screens: `songs/index.tsx`, `setlists/index.tsx`, `events/index.tsx`
 
 ### Test
 
 - [ ] Sign up with a new email → profile row appears in Supabase `profiles` table
-- [ ] Redirect lands on main app (even if it's just an empty screen for now)
+- [ ] Redirect lands on main app (Songs tab visible)
 - [ ] Sign out → redirected back to login
 - [ ] Close and reopen the app → session is restored (AsyncStorage persistence)
-- [ ] Commit: `feat: authentication — login, signup, session gate`
+- [x] Commit: `feat: Step 1 — authentication screens and auth gate`
 
 ---
 
@@ -210,7 +201,7 @@ Nothing else can be stored without a band.
   - On submit:
     1. Insert row into `bands` with `created_by = user.id`
     2. Insert row into `band_members` with `role = 'admin'`
-  - On success: navigate to main app tabs
+  - On success: navigate to `/(tabs)/songs`
 
 - [ ] Create `app/band/join.tsx` — join by invite code
   - Single invite code input
@@ -218,23 +209,20 @@ Nothing else can be stored without a band.
     1. Query `bands` where `invite_code = input`
     2. If found: insert row into `band_members` with `role = 'member'`
     3. If not found: show "Band not found" error
-  - On success: navigate to main app tabs
+  - On success: navigate to `/(tabs)/songs`
 
-- [ ] Update root layout auth gate to check for band membership after confirming session
+- [ ] Update `app/_layout.tsx` auth gate to also check for band membership
   - After confirming user is logged in: query `band_members` for current user
   - If no band: `router.replace('/band/new')`
-  - If band found: `router.replace('/(app)/')`
+  - If band found: `router.replace('/(tabs)/songs')`
 
-- [ ] Create `app/(app)/_layout.tsx` — bottom tab navigator
-  - Tabs: Songs, Setlists, Events, Settings
-  - Show band name in the header (fetch from Supabase or pass via context)
-
-- [ ] Create a `BandContext` (or similar) to store the current band ID and name
-  - Fetched once after login, available to all screens without re-fetching
+- [ ] Create a `BandContext` to store the current band ID and name
+  - Fetched once after login, available to all tab screens without re-fetching
+  - Show band name in the tab bar header
 
 ### Test
 
-- [ ] Create a band → redirected to main app → band name visible in header
+- [ ] Create a band → redirected to Songs tab → band name visible in header
 - [ ] Share invite code with a second user → they join → see same band
 - [ ] Commit: `feat: band setup — create, join, onboarding gate`
 
@@ -269,7 +257,7 @@ Nothing else can be stored without a band.
 
 ### App — screens
 
-- [ ] Create `app/(app)/songs/index.tsx` — song list
+- [ ] Replace `app/(tabs)/songs/index.tsx` — song list (replaces placeholder)
   - Fetch songs for the current band, sorted by `title`
   - Each row: title, artist, status badge (color-coded)
   - Filter bar at the top: All / Learning / Ready / Performance Ready
@@ -277,13 +265,13 @@ Nothing else can be stored without a band.
   - Empty state: "No songs yet — add your first one"
   - Loading state while fetching
 
-- [ ] Create `app/(app)/songs/new.tsx` — add song form
+- [ ] Create `app/(tabs)/songs/new.tsx` — add song form
   - Inputs: title (required), artist, key, BPM (numeric), notes
   - Status picker: Learning / Ready / Performance Ready (default: Learning)
   - "Save" button → insert into Supabase → navigate back to list
   - Error message on failure
 
-- [ ] Create `app/(app)/songs/[id].tsx` — edit/view song
+- [ ] Create `app/(tabs)/songs/[id].tsx` — edit/view song
   - Fetch song by `id` from Supabase
   - Same form as `new.tsx`, pre-filled with existing values
   - "Save" button → update in Supabase → navigate back
@@ -318,17 +306,17 @@ Nothing else can be stored without a band.
 
 ### App — screens
 
-- [ ] Create `app/(app)/setlists/index.tsx` — setlists list
+- [ ] Replace `app/(tabs)/setlists/index.tsx` — setlists list (replaces placeholder)
   - Fetch setlists for the current band
   - Each row: setlist name + song count
   - "Create setlist" button
   - Empty state: "No setlists yet"
 
-- [ ] Create `app/(app)/setlists/new.tsx` — create setlist
+- [ ] Create `app/(tabs)/setlists/new.tsx` — create setlist
   - Name input (required)
   - Save → insert into Supabase → navigate to setlist detail
 
-- [ ] Create `app/(app)/setlists/[id].tsx` — setlist detail
+- [ ] Create `app/(tabs)/setlists/[id].tsx` — setlist detail
   - Fetch songs in this setlist ordered by `position`
   - Each row: position number, title, artist, up/down buttons
   - Up button: swap `position` with the song above
@@ -364,17 +352,17 @@ Nothing else can be stored without a band.
 
 ### App — screens
 
-- [ ] Create `app/(app)/events/index.tsx` — events list
+- [ ] Replace `app/(tabs)/events/index.tsx` — events list (replaces placeholder)
   - Two sections: **Upcoming** (date ≥ today) and **Past** (date < today)
   - Each row: title, type badge (Rehearsal / Gig), formatted date, location
   - "Add event" button
   - Empty state for each section: "No upcoming events — schedule one"
 
-- [ ] Create `app/(app)/events/new.tsx` — create event form
+- [ ] Create `app/(tabs)/events/new.tsx` — create event form
   - Inputs: title (required), type picker (Rehearsal / Gig), date + time picker, location, notes
   - Save → insert → navigate back to list
 
-- [ ] Create `app/(app)/events/[id].tsx` — edit event
+- [ ] Create `app/(tabs)/events/[id].tsx` — edit event
   - Same form pre-filled
   - Save → update → navigate back
   - Delete button with confirmation
