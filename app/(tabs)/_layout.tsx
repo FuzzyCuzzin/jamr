@@ -1,35 +1,54 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from 'expo-router'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+type IoniconName = React.ComponentProps<typeof Ionicons>['name']
+
+function tabIcon(name: IoniconName, focusedName: IoniconName) {
+  return ({ color, focused }: { color: string; focused: boolean }) => (
+    <Ionicons name={focused ? focusedName : name} size={24} color={color} />
+  )
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: '#2563eb',
+        tabBarInactiveTintColor: '#9ca3af',
+        tabBarStyle: {
+          borderTopColor: '#e5e7eb',
+        },
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="songs"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Songs',
+          tabBarIcon: tabIcon('musical-notes-outline', 'musical-notes'),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="setlists"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Setlists',
+          tabBarIcon: tabIcon('list-outline', 'list'),
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: 'Events',
+          tabBarIcon: tabIcon('calendar-outline', 'calendar'),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: tabIcon('person-outline', 'person'),
         }}
       />
     </Tabs>
-  );
+  )
 }
