@@ -145,10 +145,10 @@ you can recover any file with: `git checkout v0-nextjs-scaffold -- src/`
 
 ### Test
 
-- [ ] Sign up with a new email → profile row appears in Supabase `profiles` table
-- [ ] Redirect lands on main app (Songs tab visible)
-- [ ] Sign out → redirected back to login
-- [ ] Close and reopen the app → session is restored (AsyncStorage persistence)
+- [x] Sign up with a new email → profile row appears in Supabase `profiles` table
+- [x] Redirect lands on main app (Songs tab visible)
+- [x] Sign out → redirected back to login
+- [x] Close and reopen the app → session is restored (AsyncStorage persistence)
 - [x] Commit: `feat: Step 1 — authentication screens and auth gate`
 
 ---
