@@ -43,6 +43,8 @@ export default function EditEventScreen() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
   useEffect(() => {
     if (!id) return
     supabase
@@ -50,15 +52,18 @@ export default function EditEventScreen() {
       .select('*')
       .eq('id', id)
       .single()
-      .then(({ data }) => {
-        if (!data) return
-        setTitle(data.title)
-        setType(data.type)
-        setStatus(data.status)
-        setDateInput(toDateInput(data.date))
-        setLocation(data.location ?? '')
-        setNotes(data.notes ?? '')
-        setRevenue(data.revenue != null ? String(data.revenue) : '')
+      .then(({ data, error: err }) => {
+        if (err || !data) {
+          setFetchError('Event not found.')
+        } else {
+          setTitle(data.title)
+          setType(data.type)
+          setStatus(data.status)
+          setDateInput(toDateInput(data.date))
+          setLocation(data.location ?? '')
+          setNotes(data.notes ?? '')
+          setRevenue(data.revenue != null ? String(data.revenue) : '')
+        }
         setLoading(false)
       })
   }, [id])
@@ -130,6 +135,14 @@ export default function EditEventScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ fontSize: 16, color: '#6b7280' }}>{fetchError}</Text>
       </View>
     )
   }

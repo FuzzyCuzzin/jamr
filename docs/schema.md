@@ -161,6 +161,7 @@ create table public.songs (
 
 **Add new columns to existing songs table:**
 ```sql
+-- Songs v2: richer metadata (Phase A)
 alter table public.songs add column if not exists duration_seconds  integer;
 alter table public.songs add column if not exists energy_level      text default 'medium';
 alter table public.songs add column if not exists artwork_url       text;
@@ -168,11 +169,19 @@ alter table public.songs add column if not exists source_platform   text;
 alter table public.songs add column if not exists source_url        text;
 alter table public.songs add column if not exists source_track_id   text;
 alter table public.songs add column if not exists imported_at       timestamptz;
+
+-- Songs v2: ratings and lyrics (Phase 2)
+alter table public.songs add column if not exists rating  integer check (rating >= 1 and rating <= 5);
+alter table public.songs add column if not exists lyrics  text;
 ```
 
+**Rating:** 1–5 integer. Represents how well the band performs the song. Null means unrated. Used for filtering (e.g. "only 4+ star songs") and setlist planning.
+
+**Lyrics:** Free text. Stored per-song for in-app viewing. Future: used by performance mode (full-screen teleprompter).
+
 **Fields deliberately left out (not needed yet):**
-- `tags` — keep notes as free text for now; add a `tags text[]` column or junction table in Phase 3 only if filtering by tag becomes a real need
-- `normalized_title` / `normalized_artist` — not needed until we detect duplicates at import time (Phase 2+)
+- `tags` — keep notes as free text for now; add a `tags text[]` column in Phase 3 if tag filtering becomes a real need
+- `normalized_title` / `normalized_artist` — not needed until duplicate detection at import time (Phase 3+)
 - A separate `song_imports` table — overkill; provenance fields inline on songs are sufficient
 
 **Dashboard query — songs learned (ready or better), with weekly delta:**
@@ -268,6 +277,19 @@ order by date asc
 limit 1;
 ```
 
+**Add new columns to existing events table (Phase 2):**
+```sql
+alter table public.events add column if not exists end_time             timestamptz;
+alter table public.events add column if not exists setlist_id           uuid references public.setlists(id);
+alter table public.events add column if not exists number_of_sets       integer;
+alter table public.events add column if not exists set_duration_minutes integer;
+alter table public.events add column if not exists break_duration_minutes integer;
+```
+
+- `end_time` — used to display event duration and to plan schedules
+- `setlist_id` — links a gig or rehearsal to the setlist being played
+- `number_of_sets`, `set_duration_minutes`, `break_duration_minutes` — gig-specific structure fields; mirrors what's on the setlist but can be set independently
+
 Status: **already created. Add status and revenue columns.**
 
 ---
@@ -278,50 +300,82 @@ A named list of songs for a show or rehearsal.
 
 ```sql
 create table public.setlists (
-  id         uuid primary key default gen_random_uuid(),
-  band_id    uuid not null references public.bands(id) on delete cascade,
-  name       text not null,
-  notes      text,
-  created_by uuid references public.profiles(id),
-  created_at timestamptz default now()
+  id                    uuid primary key default gen_random_uuid(),
+  band_id               uuid not null references public.bands(id) on delete cascade,
+  name                  text not null,
+  notes                 text,
+  number_of_sets        integer default 1,         -- how many sets in this show (1–10)
+  set_duration_minutes  integer,                   -- target length per set in minutes
+  break_duration_minutes integer,                  -- break between sets in minutes
+  created_by            uuid references public.profiles(id),
+  created_at            timestamptz default now()
 );
+```
+
+**Add new columns to existing setlists table:**
+```sql
+alter table public.setlists add column if not exists number_of_sets         integer default 1;
+alter table public.setlists add column if not exists set_duration_minutes   integer;
+alter table public.setlists add column if not exists break_duration_minutes integer;
 ```
 
 ---
 
 ### setlist_songs
 
-The songs inside a setlist, with their order.
+The songs inside a setlist, with their order and set assignment.
 
 ```sql
 create table public.setlist_songs (
   id         uuid primary key default gen_random_uuid(),
   setlist_id uuid not null references public.setlists(id) on delete cascade,
   song_id    uuid not null references public.songs(id) on delete cascade,
-  position   integer not null default 0,
+  position   integer not null default 0,   -- order within the full setlist
+  set_number integer not null default 1,   -- which set this song belongs to (1, 2, 3…)
   unique(setlist_id, song_id)
 );
 ```
 
-> `position` starts at 0. When reordering, update all affected positions in a single transaction.
+**Add set_number to existing setlist_songs table:**
+```sql
+alter table public.setlist_songs add column if not exists set_number integer not null default 1;
+```
+
+> `position` starts at 0. `set_number` starts at 1. When reordering, update all affected positions in a single transaction.
 
 ---
 
 ### practice_tasks
 
 Tasks assigned to individual band members. Used by the dashboard checklist widget.
+In Phase 2, tasks are primarily created from rehearsal outcomes and linked back to
+the rehearsal and song they came from.
+
+**Two task levels — distinguished by whether `song_id` is set:**
+- **Song-level task**: `song_id` is set — linked to a specific song (and usually a rehearsal).
+  Shown in the checklist with the song name as a subtitle.
+- **Rehearsal-level task**: `song_id` is null — general task for the whole session.
+  Shown with no song subtitle; may still be linked to a rehearsal via `rehearsal_id`.
 
 ```sql
 create table public.practice_tasks (
-  id          uuid primary key default gen_random_uuid(),
-  band_id     uuid not null references public.bands(id) on delete cascade,
-  assigned_to uuid references public.profiles(id),  -- null = unassigned / whole band
-  song_id     uuid references public.songs(id),      -- optional song link
-  description text not null,
-  completed   boolean not null default false,
-  created_by  uuid references public.profiles(id),
-  created_at  timestamptz default now()
+  id            uuid primary key default gen_random_uuid(),
+  band_id       uuid not null references public.bands(id) on delete cascade,
+  assigned_to   uuid references public.profiles(id),   -- null = unassigned / visible to all
+  song_id       uuid references public.songs(id),       -- null = rehearsal-level task
+  rehearsal_id  uuid references public.events(id),      -- null = manually created (not from rehearsal)
+  description   text not null,
+  due_date      date,                                    -- optional soft deadline
+  completed     boolean not null default false,
+  created_by    uuid references public.profiles(id),
+  created_at    timestamptz default now()
 );
+```
+
+**Add new columns to existing practice_tasks table (Phase 2):**
+```sql
+alter table public.practice_tasks add column if not exists rehearsal_id uuid references public.events(id);
+alter table public.practice_tasks add column if not exists due_date     date;
 ```
 
 **RLS policies:**
@@ -345,13 +399,38 @@ create policy "Band members can delete tasks"
   using (band_id in (select public.get_my_band_ids()));
 ```
 
-**Dashboard query — my tasks:**
+**Dashboard query — my tasks (with song and rehearsal context):**
 ```sql
-select id, description, completed, song_id
-from public.practice_tasks
-where band_id = $band_id
-  and (assigned_to = auth.uid() or assigned_to is null)
-order by completed asc, created_at asc;
+select
+  pt.id,
+  pt.description,
+  pt.completed,
+  pt.due_date,
+  pt.rehearsal_id,
+  s.title as song_title,
+  e.date  as rehearsal_date
+from public.practice_tasks pt
+left join public.songs  s on s.id = pt.song_id
+left join public.events e on e.id = pt.rehearsal_id
+where pt.band_id = $band_id
+  and (pt.assigned_to = auth.uid() or pt.assigned_to is null)
+order by pt.completed asc, pt.created_at asc;
+```
+
+**Rehearsal query — tasks created from a specific rehearsal:**
+```sql
+select
+  pt.id,
+  pt.description,
+  pt.completed,
+  pt.assigned_to,
+  p.display_name as assigned_name,
+  s.title        as song_title
+from public.practice_tasks pt
+left join public.profiles p on p.id = pt.assigned_to
+left join public.songs    s on s.id = pt.song_id
+where pt.rehearsal_id = $rehearsal_event_id
+order by pt.song_id nulls last, pt.created_at asc;
 ```
 
 ---
@@ -399,9 +478,190 @@ create policy "Band members can delete <table>"
 
 ---
 
-## Phase 2 Tables — Communication
+## Phase 2 Tables — Enhanced Features
 
 Add these when starting Phase 2. Do not create them yet.
+
+### rehearsal_songs
+
+Songs practiced at a specific rehearsal. Only used for events with `type = 'rehearsal'`.
+
+This is the richer replacement for the simpler `event_songs` concept. It adds per-song
+notes and a practiced flag, which are needed for the Rehearsal Detail workflow.
+
+- `notes` — free text captured during the rehearsal for that song.
+  (e.g. "Still struggling with verse 2 key change", "Solo sounded great tonight")
+- `practiced` — whether the band actually ran through this song during the session.
+  False means it was planned but skipped.
+- `position` — the order songs are displayed in the rehearsal (matches planned setlist order
+  or the order they were added).
+
+```sql
+create table public.rehearsal_songs (
+  id         uuid primary key default gen_random_uuid(),
+  event_id   uuid not null references public.events(id) on delete cascade,
+  song_id    uuid not null references public.songs(id) on delete cascade,
+  notes      text,                           -- per-song notes captured during rehearsal
+  practiced  boolean not null default false, -- was this song actually run through?
+  position   integer not null default 0,     -- display order within the rehearsal
+  created_at timestamptz default now(),
+  unique(event_id, song_id)
+);
+
+alter table public.rehearsal_songs enable row level security;
+
+-- RLS: scoped through the event's band_id
+create policy "Band members can view rehearsal songs"
+  on public.rehearsal_songs for select
+  using (event_id in (
+    select id from public.events
+    where band_id in (select public.get_my_band_ids())
+  ));
+
+create policy "Band members can insert rehearsal songs"
+  on public.rehearsal_songs for insert
+  with check (event_id in (
+    select id from public.events
+    where band_id in (select public.get_my_band_ids())
+  ));
+
+create policy "Band members can update rehearsal songs"
+  on public.rehearsal_songs for update
+  using (event_id in (
+    select id from public.events
+    where band_id in (select public.get_my_band_ids())
+  ));
+
+create policy "Band members can delete rehearsal songs"
+  on public.rehearsal_songs for delete
+  using (event_id in (
+    select id from public.events
+    where band_id in (select public.get_my_band_ids())
+  ));
+```
+
+**Rehearsal Detail query — songs with notes and task counts:**
+```sql
+select
+  rs.id,
+  rs.song_id,
+  rs.notes,
+  rs.practiced,
+  rs.position,
+  s.title,
+  s.artist,
+  count(pt.id) as task_count
+from public.rehearsal_songs rs
+join  public.songs s on s.id = rs.song_id
+left join public.practice_tasks pt
+  on pt.song_id = rs.song_id
+  and pt.rehearsal_id = rs.event_id
+where rs.event_id = $event_id
+group by rs.id, rs.song_id, rs.notes, rs.practiced, rs.position, s.title, s.artist
+order by rs.position asc;
+```
+
+---
+
+### event_rsvp
+
+Per-member RSVP status for each event. A row is created automatically for each band member when an event is created.
+
+```sql
+create table public.event_rsvp (
+  id         uuid primary key default gen_random_uuid(),
+  event_id   uuid not null references public.events(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  status     text not null default 'pending',  -- 'yes' | 'no' | 'maybe' | 'pending'
+  updated_at timestamptz default now(),
+  created_at timestamptz default now(),
+  unique(event_id, user_id)
+);
+
+alter table public.event_rsvp enable row level security;
+
+-- All band members can see RSVPs for their band's events
+create policy "Band members can view RSVPs"
+  on public.event_rsvp for select
+  using (event_id in (
+    select id from public.events
+    where band_id in (select public.get_my_band_ids())
+  ));
+
+-- Users can only insert their own RSVP
+create policy "Users can insert own RSVP"
+  on public.event_rsvp for insert
+  with check (auth.uid() = user_id);
+
+-- Users can only update their own RSVP
+create policy "Users can update own RSVP"
+  on public.event_rsvp for update
+  using (auth.uid() = user_id);
+```
+
+**RSVP query — summary for an event:**
+```sql
+select
+  status,
+  count(*) as count
+from public.event_rsvp
+where event_id = $event_id
+group by status;
+```
+
+---
+
+### user_availability
+
+Dates a user is unavailable. Used to help schedule events without conflicts.
+
+```sql
+create table public.user_availability (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  date       date not null,
+  available  boolean not null default false,  -- false = blocked/unavailable
+  notes      text,
+  created_at timestamptz default now(),
+  unique(user_id, date)
+);
+
+alter table public.user_availability enable row level security;
+
+-- Users can view their own availability; band members can view others'
+create policy "Users can view own availability"
+  on public.user_availability for select
+  using (auth.uid() = user_id);
+
+create policy "Users can manage own availability"
+  on public.user_availability for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own availability"
+  on public.user_availability for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own availability"
+  on public.user_availability for delete
+  using (auth.uid() = user_id);
+```
+
+**Availability query — who is unavailable on a given date:**
+```sql
+select ua.user_id, p.display_name
+from public.user_availability ua
+join public.profiles p on p.id = ua.user_id
+join public.band_members bm on bm.user_id = ua.user_id
+where bm.band_id = $band_id
+  and ua.date = $date
+  and ua.available = false;
+```
+
+---
+
+## Phase 3 Tables — Communication
+
+Add these when starting Phase 3. Do not create them yet.
 
 ### messages
 
@@ -448,35 +708,38 @@ create table public.poll_votes (
 
 ## Phase 3 Tables — Rehearsal Tools
 
-Add these when starting Phase 3. Do not create them yet.
+The main rehearsal data (`rehearsal_songs`, per-song notes, practice tasks) is handled
+by tables added in Phase 2. Phase 3 adds recordings support only.
 
 ```sql
--- Lyrics (alter existing table)
-alter table public.songs add column lyrics text;
+-- Lyrics (alter existing table, if not already added in Songs v2)
+alter table public.songs add column if not exists lyrics text;
 
-create table public.rehearsal_logs (
+-- Rehearsal recordings: audio/video files stored in Supabase Storage
+-- Each recording is linked to a rehearsal event and optionally a song
+create table public.rehearsal_recordings (
   id         uuid primary key default gen_random_uuid(),
   event_id   uuid not null references public.events(id) on delete cascade,
   band_id    uuid not null references public.bands(id) on delete cascade,
-  notes      text,
+  song_id    uuid references public.songs(id),   -- null = whole-session recording
+  file_url   text not null,                       -- Supabase Storage URL
+  label      text,                                -- optional label ("Full run-through", "Bridge section")
   created_by uuid references public.profiles(id),
   created_at timestamptz default now()
 );
 ```
 
+> Note: `rehearsal_logs` (a simple notes table) has been removed from the plan.
+> Overall rehearsal notes are stored directly on the `events.notes` column.
+> Per-song notes are stored on `rehearsal_songs.notes`.
+> Practice tasks from the rehearsal are in `practice_tasks` with `rehearsal_id` set.
+
 ---
 
-## Phase 4 Tables — Events & Promo
+## Phase 4 Tables — Promo & Media
 
 Add these when starting Phase 4. Do not create them yet.
 
-```sql
-create table public.event_rsvp (
-  id         uuid primary key default gen_random_uuid(),
-  event_id   uuid not null references public.events(id) on delete cascade,
-  user_id    uuid not null references public.profiles(id) on delete cascade,
-  status     text not null default 'pending',  -- 'yes' | 'no' | 'maybe' | 'pending'
-  created_at timestamptz default now(),
-  unique(event_id, user_id)
-);
-```
+> Note: `event_rsvp` is defined in Phase 2 (see above). No additional tables are needed
+> for Phase 4 beyond Storage-based media uploads handled by `rehearsal_recordings` (Phase 3)
+> and a future `media_assets` table for band photos and press kit files.

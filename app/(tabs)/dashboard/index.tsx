@@ -208,36 +208,38 @@ export default function DashboardScreen() {
       )}
 
       {/* Next Gig */}
-      {nextGig && (
-        <View style={styles.section}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Next Gig</Text>
+        {nextGig ? (
           <EventCard
             type="gig"
             title={nextGig.title}
             date={nextGig.date}
             location={nextGig.location}
           />
-        </View>
-      )}
+        ) : (
+          <View style={styles.noEventsBox}>
+            <Text style={styles.noEventsText}>No gigs scheduled</Text>
+          </View>
+        )}
+      </View>
 
       {/* Next Rehearsal */}
-      {nextRehearsal && (
-        <View style={styles.section}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Next Rehearsal</Text>
+        {nextRehearsal ? (
           <EventCard
             type="rehearsal"
             title={nextRehearsal.title}
             date={nextRehearsal.date}
             location={nextRehearsal.location}
           />
-        </View>
-      )}
-
-      {!nextGig && !nextRehearsal && (
-        <View style={styles.section}>
+        ) : (
           <View style={styles.noEventsBox}>
-            <Text style={styles.noEventsText}>No upcoming events scheduled</Text>
+            <Text style={styles.noEventsText}>No rehearsals scheduled</Text>
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Practice Checklist */}
       <View style={styles.section}>

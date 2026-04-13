@@ -23,23 +23,29 @@ export default function SetlistsScreen() {
   const { band } = useBand()
   const [setlists, setSetlists] = useState<Setlist[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useFocusEffect(
     useCallback(() => {
       if (!band) return
       setLoading(true)
+      setError(null)
       supabase
         .from('setlists')
         .select('id, name, setlist_songs(count)')
         .eq('band_id', band.id)
         .order('created_at', { ascending: false })
-        .then(({ data }) => {
-          const mapped = (data ?? []).map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            song_count: s.setlist_songs?.[0]?.count ?? 0,
-          }))
-          setSetlists(mapped)
+        .then(({ data, error: fetchError }) => {
+          if (fetchError) {
+            setError('Failed to load setlists. Pull down to retry.')
+          } else {
+            const mapped = (data ?? []).map((s: any) => ({
+              id: s.id,
+              name: s.name,
+              song_count: s.setlist_songs?.[0]?.count ?? 0,
+            }))
+            setSetlists(mapped)
+          }
           setLoading(false)
         })
     }, [band?.id])
@@ -51,6 +57,11 @@ export default function SetlistsScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+        </View>
       ) : setlists.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>No setlists yet</Text>
@@ -60,6 +71,7 @@ export default function SetlistsScreen() {
         <FlatList
           data={setlists}
           keyExtractor={(item) => item.id}
+          style={styles.flex}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -104,6 +116,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: '600', color: '#111827' },
   count: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   separator: { height: 1, backgroundColor: '#f3f4f6' },
+  flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111827' },
   emptySubtitle: { fontSize: 14, color: '#6b7280' },

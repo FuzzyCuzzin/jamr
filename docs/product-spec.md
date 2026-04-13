@@ -74,8 +74,10 @@ Each song stores:
 - **Title**, **Artist** — required
 - **Key**, **BPM**, **Duration** (seconds) — optional, useful for setlist planning
 - **Energy Level** — `low` | `medium` | `high`. Used to plan setlist arc (openers, closers, cool-downs)
+- **Rating** — 1–5 stars. How well the band currently performs the song. Used for filtering and setlist planning.
 - **Status** + **Status Changed At** — tracks when a song moved to ready/performance-ready
 - **Notes** — free text, arrangement cues, member notes
+- **Lyrics** — full song lyrics; viewable in-app and used by future performance mode
 - **Artwork URL** — album art from the import source; shown as a thumbnail in the list
 - **Source Platform** — `spotify` | `apple_music` | `youtube` | `manual`
 - **Source URL** — the original link used to import the song
@@ -103,9 +105,16 @@ Four options presented as large tappable cards:
 Skips import, goes directly to the review screen with all fields empty.
 
 **Step 3 — Review / edit screen**
-- All fields shown and editable: Title*, Artist, Key, BPM, Duration, Energy Level, Status, Notes
+- All fields shown and editable: Title*, Artist, Key, BPM, Duration, Energy Level, Rating, Status, Notes
+- Lyrics field (multi-line, collapsible)
 - If imported: Artwork thumbnail + source platform badge shown read-only at top
 - "Save song" → inserts → back to Songs list
+
+#### Add to Setlist (from song detail)
+- Song detail screen has an "Add to Setlist" button
+- Opens a list of existing setlists with checkboxes (multi-select supported)
+- User can also tap "New Setlist" at the top to create one on the spot
+- Saves to `setlist_songs` for each selected setlist
 
 #### Sorting options
 Users can sort the song list by:
@@ -113,6 +122,7 @@ Users can sort the song list by:
 - Artist A→Z
 - Recently Added
 - Status
+- Rating (high → low)
 - Duration (short → long)
 - BPM (low → high)
 - Energy Level
@@ -121,6 +131,7 @@ Users can sort the song list by:
 Users can filter by:
 - **Status**: All / Learning / Ready / Performance Ready
 - **Energy Level**: All / Low / Medium / High
+- **Rating**: All / 3+ stars / 5 stars only
 
 #### Song list display
 Each row shows:
@@ -128,21 +139,124 @@ Each row shows:
 - Title + Artist
 - Status badge
 - Energy dot (colored indicator: low=blue, medium=amber, high=red)
+- Star rating (if set)
 - Duration (if set)
 
 ### 4. Setlist Builder
+
+#### Current (MVP)
 - Create a named setlist
-- Add songs from the catalog to a setlist
-- Reorder songs (up/down buttons — no drag-and-drop in MVP)
+- Add songs from the catalog
+- Reorder songs (up/down buttons)
 - Remove a song from a setlist
 - Delete a setlist
 
+#### Setlist Wizard (Phase 2)
+A guided flow for creating a setlist that fits a specific show format.
+
+**Step 1 — Show structure**
+- Number of sets (1–10)
+- Set length in minutes (e.g. 45)
+- Break length in minutes (optional, e.g. 15)
+
+**Step 2 — Pick songs**
+- Browse the full catalog using the same filter/sort UI as the Songs tab
+- Multi-select songs by tapping them (checkmark appears)
+- Running total shown: "X songs selected / ~Y minutes"
+- Filter by status, energy, rating to find the right songs
+
+**Step 3 — Review & distribute**
+- System calculates: total duration, songs per set, fit vs. target length
+- User can assign songs to specific sets (Set 1, Set 2, etc.)
+- Warning shown if total duration is significantly over or under target
+
+**Step 4 — Reorder within sets**
+- Drag-and-drop reordering within each set
+- Songs show duration + energy indicator to help plan flow
+
+#### Setlist metadata
+Each setlist tracks:
+- Name
+- Number of sets
+- Target set duration (minutes)
+- Break duration (minutes)
+- Notes
+
+#### Setlist export / print
+- Export a setlist as plain text (song list in order, grouped by set)
+- Share via the native share sheet (messages, email, AirDrop, etc.)
+- Format: one song per line, set headers, total duration at the bottom
+
 ### 5. Events
-- Create an event: title, type (rehearsal or gig), date, time, location, notes
-- View upcoming events (sorted by date)
-- View past events separately
-- Edit an event
-- Delete an event (with confirmation)
+
+#### Event types
+`rehearsal` | `gig`
+
+#### Shared fields (all events)
+- Title (required)
+- Type: Rehearsal or Gig
+- Date (required)
+- Start time
+- End time (optional — used to calculate duration)
+- Location
+- Notes
+- Status: `scheduled` | `completed` | `canceled`
+
+#### Gig-specific fields
+- Linked setlist (optional — which setlist the band will play)
+- Number of sets
+- Set duration (minutes)
+- Break duration (minutes)
+- Revenue (recorded when marking as completed)
+
+#### Rehearsal-specific fields
+- Linked setlist (optional — what the band plans to run through)
+- Songs to practice: pick from the song catalog (multi-select) before the rehearsal
+
+#### Rehearsal Detail screen
+The Rehearsal Detail is a dedicated view for running through a rehearsal. It is separate
+from the generic event edit form — it is designed for use **during and after** the rehearsal.
+
+From the Events list, tapping a rehearsal row opens the Rehearsal Detail screen.
+An "Edit" button in the header opens the standard event edit form.
+
+The Rehearsal Detail screen contains:
+
+**Header**
+- Date, time, and location pulled from the event
+- Status badge (Scheduled / Completed / Canceled)
+- "Edit" button → opens the event edit form
+
+**Songs Practiced**
+- List of songs added to this rehearsal (from the catalog, pre-selected before rehearsal)
+- "Add song" button to add from the catalog on the fly
+- Each row shows: song title, artist, a "Practiced" toggle, and a "Notes" button
+- Tapping "Notes" opens an inline or bottom-sheet text field for per-song notes
+  (e.g. "Struggled with the key change in verse 2", "Nailed the intro finally")
+- "Create task" button on the notes sheet creates a follow-up practice task linked
+  to that song and this rehearsal
+
+**Rehearsal Notes**
+- Free text field for overall notes about the session
+- (e.g. "Strong energy tonight, transitions still rough between set 1 and 2")
+
+**Practice Tasks from this Rehearsal**
+- List of tasks created during this rehearsal (song-level and rehearsal-level)
+- Shows: description, assigned member, linked song name (if any)
+- Checkbox to mark complete
+
+#### Events list
+- **Upcoming** section: status = scheduled, date ≥ today, sorted soonest first
+- **Past** section: completed or canceled, or date < today, sorted most recent first
+- Each row: type badge, title, formatted date, location
+
+#### RSVP (Phase 2)
+Each event supports per-member RSVP:
+- Statuses: `yes` | `no` | `maybe` | `pending` (default)
+- When an event is created, all band members are automatically invited (a row is created for each with status = pending)
+- Members respond from the event detail screen
+- Event detail shows RSVP summary: "3 yes · 1 maybe · 1 no response"
+- Dashboard shows RSVP status for upcoming events
 
 ### 6. Dashboard
 The Dashboard is the main landing screen after login. It surfaces a high-level snapshot
@@ -179,11 +293,68 @@ Four metric cards arranged in a 2×2 grid:
 - If no upcoming rehearsal: shows "No rehearsals scheduled" placeholder
 
 #### Practice Checklist
-- Shows practice tasks assigned to the currently signed-in user (`assigned_to = auth.uid()`)
-- Each task: checkbox + description text
-- Completed tasks show strikethrough text
-- "+" button to add a new task (description only, no song link in MVP)
-- Filtering: show incomplete tasks first, then completed
+The Practice Checklist surfaces the current user's open practice tasks on the dashboard.
+In the MVP, tasks are added manually. Starting in Phase 2, tasks are generated from
+rehearsal outcomes and linked back to the rehearsal and song they came from.
+
+- Shows tasks assigned to the current user (`assigned_to = auth.uid()`)
+- Each task shows: description text; if linked to a song, the song title appears as a subtitle
+- Completed tasks show strikethrough text and move to the bottom
+- "+" button to manually add a task (description only; no song or rehearsal link)
+- Order: open tasks first (by created_at), completed tasks below
+
+**Task levels (Phase 2):**
+
+Two types of tasks coexist in the same list:
+
+- **Song-level tasks** — linked to a specific song and optionally a rehearsal
+  (e.g. "Work on the key change in Purple Rain — from Mar 14 rehearsal")
+  Display: song name shown as subtitle; tap → navigates to that song
+- **Rehearsal-level tasks** — general tasks for the whole band, no song link
+  (e.g. "Tighten transitions between set 1 and 2")
+  Display: no subtitle; optionally linked to a rehearsal date
+
+Both types can be assigned to a specific member or left unassigned (visible to all band members).
+Both types can have an optional due date (shown as a soft deadline, not enforced).
+
+---
+
+## Phase 2 — Enhanced Features
+
+These are built after Phase 1 is stable and shipped.
+
+### Rehearsal Detail
+A dedicated screen for running and logging a rehearsal. This is the primary way
+practice tasks are created.
+
+**Rehearsal workflow:**
+1. Open or create a rehearsal event
+2. Add songs to the rehearsal (pick from the catalog or pull from a linked setlist)
+3. During rehearsal: open each song, mark it as practiced, add per-song notes
+4. From any note, create a follow-up practice task and assign it to a band member
+5. After the rehearsal: add overall rehearsal notes; mark the event as completed
+6. The dashboard checklist shows all assigned tasks for the current user
+
+**Schema additions needed:**
+- `rehearsal_songs` table: links songs to a rehearsal event, stores per-song notes and practiced status
+- Update `practice_tasks`: add `rehearsal_id` (FK to events) and `due_date`
+
+### Calendar View
+- A dedicated calendar screen showing all events (gigs + rehearsals) plotted by date
+- Month view with dots on event days; tap a day to see event details
+- Quick way to spot scheduling conflicts or gaps in the schedule
+
+### User Availability
+- Each user can mark dates they are **unavailable** (blackout dates)
+- Optional: preferred rehearsal times (e.g. weekday evenings only)
+- Availability is visible to all band members
+- Future: system suggests event dates based on everyone's availability
+
+### User Profile Enhancements
+- Edit display name and avatar
+- Set availability preferences
+- Add blackout dates (dates unavailable)
+- View own RSVP history
 
 ---
 
@@ -200,6 +371,7 @@ Do not build these yet. They are tracked in the roadmap.
 - Rehearsal recording uploads
 - Shareable event links (public pages)
 - Media or promo management
+- External calendar integrations (Google Calendar, iCal)
 
 ---
 
@@ -226,18 +398,22 @@ These are the product areas Jamr will cover over time. Phase 1 is the foundation
 
 ### Planning tools
 - Song catalog / repertoire manager (import-first)
-- Setlist builder with ordering and energy arc planning
-- Song details: BPM, key, duration, energy level, notes, lyrics, status
-- Shared band calendar
-- Band member availability
-- Rehearsal and gig planning
+- Setlist wizard: guided flow with set structure, duration planning, energy arc
+- Song details: BPM, key, duration, energy level, rating, lyrics, notes, status
+- "Add to Setlist" from song detail (multi-select setlists)
+- Setlist export / share via native share sheet
+- Shared band calendar (monthly view)
+- Band member availability and blackout dates
+- Rehearsal song planning (pick songs to practice per event)
 
 ### Rehearsal / performance tools
-- Rehearsal log and notes
-- Practice tasks by member
-- Rehearsal recordings manager
-- Lyrics viewer with auto-scroll and adjustable font size
-- Performance mode (full-screen teleprompter)
+- Rehearsal Detail screen: song list, per-song notes, practiced toggle
+- Practice tasks created from rehearsal outcomes (song-level and rehearsal-level)
+- Task assignment by band member with optional due date
+- Rehearsal overall notes (session-level free text)
+- Rehearsal recordings manager (Phase 4)
+- Lyrics viewer with auto-scroll and adjustable font size (Phase 4)
+- Performance mode (full-screen teleprompter) (Phase 4)
 
 ### Communication
 - In-app band chat

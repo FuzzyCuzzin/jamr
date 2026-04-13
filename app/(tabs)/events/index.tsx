@@ -48,21 +48,27 @@ export default function EventsScreen() {
   const [upcoming, setUpcoming] = useState<Event[]>([])
   const [past, setPast] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useFocusEffect(
     useCallback(() => {
       if (!band) return
       setLoading(true)
+      setError(null)
       const now = new Date().toISOString()
       supabase
         .from('events')
         .select('id, title, type, status, date, location')
         .eq('band_id', band.id)
         .order('date', { ascending: true })
-        .then(({ data }) => {
-          const all = (data ?? []) as Event[]
-          setUpcoming(all.filter((e) => e.status === 'scheduled' && e.date >= now))
-          setPast(all.filter((e) => e.status !== 'scheduled' || e.date < now))
+        .then(({ data, error: fetchError }) => {
+          if (fetchError) {
+            setError('Failed to load events. Pull down to retry.')
+          } else {
+            const all = (data ?? []) as Event[]
+            setUpcoming(all.filter((e) => e.status === 'scheduled' && e.date >= now))
+            setPast(all.filter((e) => e.status !== 'scheduled' || e.date < now))
+          }
           setLoading(false)
         })
     }, [band?.id])
@@ -78,6 +84,11 @@ export default function EventsScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563eb" />
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
         </View>
       ) : upcoming.length === 0 && past.length === 0 ? (
         <View style={styles.center}>

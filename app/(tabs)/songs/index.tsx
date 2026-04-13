@@ -40,18 +40,24 @@ export default function SongsScreen() {
   const [songs, setSongs] = useState<Song[]>([])
   const [filter, setFilter] = useState<FilterKey>('all')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useFocusEffect(
     useCallback(() => {
       if (!band) return
       setLoading(true)
+      setError(null)
       supabase
         .from('songs')
         .select('id, title, artist, status')
         .eq('band_id', band.id)
         .order('title')
-        .then(({ data }) => {
-          setSongs((data as Song[]) ?? [])
+        .then(({ data, error: fetchError }) => {
+          if (fetchError) {
+            setError('Failed to load songs. Pull down to retry.')
+          } else {
+            setSongs((data as Song[]) ?? [])
+          }
           setLoading(false)
         })
     }, [band?.id])
@@ -82,6 +88,11 @@ export default function SongsScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563eb" />
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
         </View>
       ) : visible.length === 0 ? (
         <View style={styles.center}>

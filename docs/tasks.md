@@ -504,50 +504,439 @@ Do this before starting Phase 2. The app should be fully usable on a real device
 
 ---
 
-## Step 8 — Rehearsal Logs + Practice Tasks (extended)
+## Step 8 — Songs v2: Richer Metadata + Import Flow
 
-**Why here:** These build on events (logs) and songs (tasks). Phase 1 must be stable first.
+_(This is Phase A of Step 3.5 plus the rating/lyrics additions. Work through 3.5 Phases A–D first, then pick up rating and lyrics here.)_
 
 ### Supabase
 
-- [ ] Run `rehearsal_logs` table SQL (see `schema.md`)
-- [ ] Enable RLS on `rehearsal_logs` and add band-membership policies
+- [ ] Run all Songs v2 column additions (from Step 3.5 Phase A):
+  ```sql
+  alter table public.songs add column if not exists duration_seconds  integer;
+  alter table public.songs add column if not exists energy_level      text default 'medium';
+  alter table public.songs add column if not exists artwork_url       text;
+  alter table public.songs add column if not exists source_platform   text;
+  alter table public.songs add column if not exists source_url        text;
+  alter table public.songs add column if not exists source_track_id   text;
+  alter table public.songs add column if not exists imported_at       timestamptz;
+  alter table public.songs add column if not exists rating  integer check (rating >= 1 and rating <= 5);
+  alter table public.songs add column if not exists lyrics  text;
+  ```
 
-### App — rehearsal logs
+### App — song list screen
 
-- [ ] Add "View Log" entry point on each event detail screen
-- [ ] Create rehearsal log screen: notes field + list of songs covered
-- [ ] Save log entry linked to the event
-- [ ] View past log entries from the event detail
+- [ ] Add sort control: Title, Artist, Recently Added, BPM, Duration, Energy, Rating
+- [ ] Add energy filter chips: All / Low / Medium / High
+- [ ] Add rating filter: All / 3+ stars / 5 stars only
+- [ ] Redesign song row: artwork thumbnail, energy dot, star rating, duration
 
-### App — practice tasks (extended)
+### App — add song flow (redesign)
 
-- [ ] Add song link to task creation (optional)
-- [ ] Add ability to assign a task to a specific band member
-- [ ] Filter: all tasks / my tasks / incomplete only
+- [ ] Create `app/(tabs)/songs/add.tsx` — method picker screen
+  - Four large tappable cards: Spotify / Apple Music / YouTube / Manual
+- [ ] Create `app/(tabs)/songs/import.tsx` — paste link + fetch metadata
+  - Text input for link, "Import" button, loading state, error + manual fallback
+  - Phase A: parse URL client-side only (no API calls yet)
+  - Phase B: YouTube oEmbed fetch
+  - Phase C: Spotify via Supabase Edge Function
+- [ ] Update `app/(tabs)/songs/new.tsx` — review/edit screen
+  - Add: Energy Level picker, Duration (m:ss inputs), Artwork URL input + thumbnail preview
+  - Add: Star rating picker (1–5 tappable stars)
+  - Add: Lyrics field (multi-line, collapsible)
+  - Add: source platform badge (read-only, shown if imported)
+
+### App — song detail screen
+
+- [ ] Update `app/(tabs)/songs/[id].tsx`:
+  - Add "Add to Setlist" button
+  - Opens a modal/sheet listing all setlists with checkboxes (multi-select)
+  - "New Setlist" option at top of the list creates one on the spot
+  - On confirm: insert into `setlist_songs` for each selected setlist
+  - Show lyrics section (read-only, with "Edit" link)
+  - Show star rating (tappable to update)
+
+### Components needed
+
+- [ ] `components/StarRating.tsx` — 5 tappable stars; props: `value`, `onChange`, `readonly`
+- [ ] `components/ArtworkThumbnail.tsx` — square image with colored-initial fallback; props: `artworkUrl`, `title`, `size`
+- [ ] `components/EnergyDot.tsx` — small colored dot indicator; props: `level` ('low'|'medium'|'high')
 
 ### Test
 
-- [ ] Create a log for a rehearsal event
-- [ ] Add and complete practice tasks with song links
-- [ ] Commit: `feat: rehearsal logs and extended practice tasks`
+- [ ] Add song manually with energy, duration, rating, lyrics → displays correctly in list
+- [ ] Paste a YouTube link → title + channel pre-filled (Phase B)
+- [ ] "Add to Setlist" from song detail → song appears in selected setlists
+- [ ] Sort by rating → correct order
+- [ ] Filter by energy High → only high-energy songs shown
+- [ ] Commit: `feat: Step 8 — Songs v2 richer metadata, import flow, add-to-setlist`
 
 ---
 
-## Step 9 — Chat + Polls
-
-**Why here:** Chat is only valuable once people already open the app for another reason.
-Phase 1 gives them that reason.
-
-### Before starting
-
-- [ ] Read the Supabase Realtime documentation before writing any code:
-  https://supabase.com/docs/guides/realtime
+## Step 9 — Setlist Wizard
 
 ### Supabase
 
-- [ ] Run Phase 2 SQL: `messages`, `polls`, `poll_options`, `poll_votes` (see `schema.md`)
-- [ ] Enable RLS on all four tables and add band-membership policies
+- [ ] Add columns to setlists and setlist_songs:
+  ```sql
+  alter table public.setlists add column if not exists number_of_sets         integer default 1;
+  alter table public.setlists add column if not exists set_duration_minutes   integer;
+  alter table public.setlists add column if not exists break_duration_minutes integer;
+  alter table public.setlist_songs add column if not exists set_number integer not null default 1;
+  ```
+
+### App — wizard screens
+
+- [ ] Create `app/(tabs)/setlists/wizard.tsx` — multi-step wizard container (controls step state)
+
+- [ ] **Wizard Step 1** — Show structure
+  - Inputs: Number of sets (1–10 stepper), Set length (minutes), Break length (minutes, optional)
+  - "Next" button
+
+- [ ] **Wizard Step 2** — Pick songs
+  - Same filter/sort controls as Songs list
+  - Tap to select (checkmark shown); tap again to deselect
+  - Sticky footer: "X songs selected · ~Y min" (sum of duration_seconds for selected songs)
+  - "Next" button
+
+- [ ] **Wizard Step 3** — Review
+  - Shows: total songs, total duration, target duration (sets × set length)
+  - Warning if total is more than 10% over or under target
+  - Breakdown: estimated songs per set based on even distribution
+  - "Next" button
+
+- [ ] **Wizard Step 4** — Assign + reorder
+  - Songs listed in groups by set (Set 1, Set 2, etc.)
+  - Drag-and-drop reordering within each set (use `react-native-draggable-flatlist`)
+  - Tap a song to move it to a different set
+  - "Save Setlist" button
+
+### App — setlist detail (updated)
+
+- [ ] Show songs grouped by set (Set 1: X songs · Ymin, Set 2: ...)
+- [ ] Show per-set duration calculated from `duration_seconds`
+- [ ] Show total duration in setlist header
+
+### App — setlist export
+
+- [ ] "Share" button on setlist detail (header icon)
+- [ ] Generates plain text: setlist name, songs grouped by set, total duration
+- [ ] Opens native share sheet (Share API)
+
+### Components needed
+
+- [ ] `components/SetSection.tsx` — collapsible section for one set; props: `setNumber`, `songs`, `duration`
+- [ ] `components/DurationBadge.tsx` — formatted `m:ss` or `Xmin` display; props: `seconds`
+
+### Test
+
+- [ ] Create setlist via wizard: 2 sets, 45 min each, pick 20 songs → review matches target
+- [ ] Assign songs to sets → order saved correctly
+- [ ] Setlist detail shows songs per set with duration
+- [ ] Share button generates correct text output
+- [ ] Commit: `feat: Step 9 — setlist wizard with set structure and export`
+
+---
+
+## Step 10 — Rehearsal Detail
+
+**Why here:** Depends on events (Step 5) and songs (Step 3). Should come before the
+Events Overhaul because the Rehearsal Detail defines what a rehearsal *is* in the app —
+the Events Overhaul (Step 11) then layers on gig-specific fields and setlist linking.
+
+**What this unlocks:** Practice tasks become rehearsal-driven, the dashboard checklist
+becomes contextual (task → song → rehearsal), and the band has a first-class way to
+log what was worked on.
+
+### Supabase
+
+- [ ] Create `rehearsal_songs` table + RLS:
+  ```sql
+  create table public.rehearsal_songs (
+    id         uuid primary key default gen_random_uuid(),
+    event_id   uuid not null references public.events(id) on delete cascade,
+    song_id    uuid not null references public.songs(id) on delete cascade,
+    notes      text,
+    practiced  boolean not null default false,
+    position   integer not null default 0,
+    created_at timestamptz default now(),
+    unique(event_id, song_id)
+  );
+
+  alter table public.rehearsal_songs enable row level security;
+
+  create policy "Band members can view rehearsal songs"
+    on public.rehearsal_songs for select
+    using (event_id in (
+      select id from public.events
+      where band_id in (select public.get_my_band_ids())
+    ));
+
+  create policy "Band members can insert rehearsal songs"
+    on public.rehearsal_songs for insert
+    with check (event_id in (
+      select id from public.events
+      where band_id in (select public.get_my_band_ids())
+    ));
+
+  create policy "Band members can update rehearsal songs"
+    on public.rehearsal_songs for update
+    using (event_id in (
+      select id from public.events
+      where band_id in (select public.get_my_band_ids())
+    ));
+
+  create policy "Band members can delete rehearsal songs"
+    on public.rehearsal_songs for delete
+    using (event_id in (
+      select id from public.events
+      where band_id in (select public.get_my_band_ids())
+    ));
+  ```
+
+- [ ] Update `practice_tasks` table — add new columns:
+  ```sql
+  alter table public.practice_tasks
+    add column if not exists rehearsal_id uuid references public.events(id);
+  alter table public.practice_tasks
+    add column if not exists due_date date;
+  ```
+  > `rehearsal_id` links a task back to the rehearsal where it was created.
+  > `due_date` is optional; surfaced in the UI as a soft deadline.
+
+### App — navigation update
+
+- [ ] Update `app/(tabs)/events/index.tsx` — when tapping a rehearsal row, navigate to
+  `/(tabs)/events/rehearsal/${item.id}` instead of `/(tabs)/events/${item.id}`.
+  Gig rows continue to navigate to `/(tabs)/events/${item.id}` (the edit screen).
+
+### App — Rehearsal Detail screen
+
+- [ ] Create `app/(tabs)/events/rehearsal/[id].tsx`:
+
+  **Data to fetch on load (all in parallel):**
+  - The event row (`events` where id = rehearsalId)
+  - Songs for this rehearsal (`rehearsal_songs` joined to `songs`, ordered by position)
+  - Tasks from this rehearsal (`practice_tasks` where rehearsal_id = rehearsalId, joined to songs)
+  - Band members (for the assignee picker when creating a task)
+
+  **Header section:**
+  - Date, time, location pulled from the event row
+  - Status badge (Scheduled / Completed / Canceled)
+  - "Edit" button in the header right → navigates to `/(tabs)/events/${id}` (existing edit form)
+
+  **Songs Practiced section:**
+  - Title: "Songs Practiced"
+  - "Add song" button → opens a song picker (same catalog picker pattern as add-songs in setlists)
+  - Each song row:
+    - Song title + artist
+    - "Practiced" toggle (tap to mark true/false → updates `rehearsal_songs.practiced`)
+    - "Notes" button → opens an inline expandable text area (or bottom sheet)
+      - Shows current `rehearsal_songs.notes` for that song
+      - "Save notes" button → updates `rehearsal_songs.notes`
+      - "Create task" button → opens the task creation sheet pre-filled with the song
+
+  **Create Task sheet (opened from a song row or the "+" button in the Tasks section):**
+  - Description text input (required)
+  - Song link: pre-filled if opened from a song row; clearable
+  - Assign to: member picker (scrollable list of band member names with tap-to-select;
+    "Whole band / unassigned" as first option)
+  - Due date: optional date text input (YYYY-MM-DD)
+  - "Save task" → inserts to `practice_tasks` with `rehearsal_id` and `song_id` set
+
+  **Rehearsal Notes section:**
+  - Label: "Session Notes"
+  - Multi-line text input
+  - Auto-saves to `events.notes` on blur (or a "Save" button)
+
+  **Practice Tasks section:**
+  - Title: "Tasks from this Rehearsal"
+  - "+" button opens the Create Task sheet (no pre-filled song)
+  - Each task row:
+    - Checkbox (tap to toggle `completed`)
+    - Description
+    - Song name subtitle (if `song_id` is set)
+    - Assignee name (if `assigned_to` is set)
+    - Due date (if set, shown as "Due Apr 20")
+
+### App — Dashboard checklist update
+
+- [ ] Update `dashboard/index.tsx` — update the practice_tasks query to join songs and events:
+  ```typescript
+  supabase
+    .from('practice_tasks')
+    .select('id, description, completed, due_date, rehearsal_id, song_id, songs(title), events(date)')
+    .eq('band_id', band.id)
+    .or(`assigned_to.eq.${userId},assigned_to.is.null`)
+    .order('completed')
+    .order('created_at')
+  ```
+- [ ] Update the checklist task row to show:
+  - Song title as a small subtitle (if `songs.title` is present)
+  - Tap a task that has a `rehearsal_id` → navigate to `/(tabs)/events/rehearsal/${rehearsal_id}`
+
+### Test
+
+- [ ] Create a rehearsal event
+- [ ] Navigate to Rehearsal Detail via the events list
+- [ ] Add 3 songs from the catalog
+- [ ] Mark 2 songs as practiced; add notes to 1
+- [ ] Create a song-level task from the notes sheet → assigned to a specific member
+- [ ] Create a rehearsal-level task from the "+" button → no song linked
+- [ ] Check the dashboard checklist → both tasks appear for the assigned member
+- [ ] Tap a task on the dashboard → navigates back to the Rehearsal Detail
+- [ ] Add overall rehearsal notes → saves correctly
+- [ ] Commit: `feat: Step 10 — rehearsal detail screen with song notes and practice tasks`
+
+---
+
+## Step 11 — Events Overhaul (Gig-specific)
+
+**Why here:** Builds on the foundation established in Step 10 (Rehearsal Detail).
+Focuses on gig-specific enhancements: linking setlists, tracking set structure, end times.
+The `rehearsal_songs` table from Step 10 already handles rehearsal-specific song linking.
+
+### Supabase
+
+- [ ] Add new columns to events:
+  ```sql
+  alter table public.events add column if not exists end_time               timestamptz;
+  alter table public.events add column if not exists setlist_id             uuid references public.setlists(id);
+  alter table public.events add column if not exists number_of_sets         integer;
+  alter table public.events add column if not exists set_duration_minutes   integer;
+  alter table public.events add column if not exists break_duration_minutes integer;
+  ```
+
+### App — event form (updated)
+
+- [ ] Add end time field to create and edit forms
+- [ ] **Gig form additions:**
+  - Setlist picker: select from existing setlists (shows setlist name + song count)
+  - Set structure fields: number of sets, set duration, break duration
+- [ ] **Rehearsal form additions:**
+  - Setlist picker (optional): which setlist to run through at this rehearsal
+  - Note: the song-level rehearsal data lives in the Rehearsal Detail screen (Step 10),
+    not in the edit form.
+
+### App — event detail (gig-specific, updated)
+
+- [ ] Show linked setlist on the gig detail/edit screen (tap to open it)
+- [ ] Show event duration (start → end time)
+- [ ] Note: for rehearsal detail, use the dedicated Rehearsal Detail screen from Step 10
+
+### Test
+
+- [ ] Create gig with linked setlist → setlist shown in detail, tap navigates to it
+- [ ] Create rehearsal with songs to practice → list shown in detail
+- [ ] Edit event → end time saves correctly
+- [ ] Commit: `feat: Step 10 — events overhaul with end time, setlist link, rehearsal songs`
+
+---
+
+## Step 12 — RSVP System
+
+### Supabase
+
+- [ ] Create `event_rsvp` table + RLS (see schema.md)
+- [ ] Write a Supabase database function (or handle in app) to auto-create `pending` RSVP rows for all band members when a new event is inserted:
+  ```sql
+  create or replace function public.create_event_rsvps()
+  returns trigger as $$
+  begin
+    insert into public.event_rsvp (event_id, user_id, status)
+    select new.id, user_id, 'pending'
+    from public.band_members
+    where band_id = new.band_id
+    on conflict do nothing;
+    return new;
+  end;
+  $$ language plpgsql security definer;
+
+  create trigger on_event_created
+    after insert on public.events
+    for each row execute procedure public.create_event_rsvps();
+  ```
+
+### App — event detail (updated)
+
+- [ ] Show RSVP summary: "3 yes · 1 maybe · 1 no response"
+- [ ] Show current user's RSVP status with tap-to-change (Yes / Maybe / No buttons)
+- [ ] Show list of who said what (names + status)
+
+### App — events list (updated)
+
+- [ ] Add small RSVP chip to each event row showing current user's status
+
+### App — dashboard (updated)
+
+- [ ] Show current user's RSVP status on Next Gig and Next Rehearsal cards
+
+### Test
+
+- [ ] Create event → all band members get `pending` RSVP rows automatically
+- [ ] Respond to RSVP → status updates immediately in UI
+- [ ] RSVP summary reflects all members' responses
+- [ ] Commit: `feat: Step 11 — RSVP system with auto-invite and per-event responses`
+
+---
+
+## Step 13 — Calendar View
+
+### App
+
+- [ ] Add calendar screen: `app/(tabs)/events/calendar.tsx` (or new tab)
+- [ ] Install `react-native-calendars` (lightweight, well-maintained)
+- [ ] Month view: mark days with events using colored dots (purple = rehearsal, teal = gig)
+- [ ] Tap a marked day → show event list for that day below the calendar
+- [ ] Tap an event in the day list → navigate to event detail
+- [ ] Navigation: accessible from Events list screen (calendar icon in header)
+
+### Test
+
+- [ ] Events appear as dots on correct dates
+- [ ] Tap a date with multiple events → all events shown
+- [ ] Navigating month forward/backward works
+- [ ] Commit: `feat: Step 12 — calendar view for events`
+
+---
+
+## Step 14 — User Availability
+
+### Supabase
+
+- [ ] Create `user_availability` table + RLS (see schema.md)
+
+### App
+
+- [ ] Create `app/(tabs)/settings/availability.tsx` — My Availability screen
+  - Calendar view (same library as Step 12)
+  - Tap a date to toggle it unavailable (red highlight)
+  - Tap again to remove the block
+  - Optional notes per date
+- [ ] Show availability summary in band member profile view (which dates are blocked)
+- [ ] Event creation: when picking a date, show a banner if any member is unavailable
+  - "2 members unavailable on this date" → tap to see who
+
+### Test
+
+- [ ] Mark dates unavailable → shows in calendar
+- [ ] Create event on a blocked date → warning appears
+- [ ] View another member's unavailability (read-only)
+- [ ] Commit: `feat: Step 13 — user availability and blackout dates`
+
+---
+
+## Step 15 — Chat + Polls
+
+**Why here:** Chat is only valuable once the core planning features are solid.
+
+### Before starting
+
+- [ ] Read the Supabase Realtime documentation: https://supabase.com/docs/guides/realtime
+
+### Supabase
+
+- [ ] Run Phase 3 SQL: `messages`, `polls`, `poll_options`, `poll_votes` (see schema.md)
+- [ ] Enable RLS on all four tables
 
 ### App — chat
 
@@ -562,7 +951,7 @@ Phase 1 gives them that reason.
 
 - [ ] "Create poll" button inside the Chat screen
 - [ ] Poll creation form: question + 2–5 options
-- [ ] Poll rendered inline in the chat: options with vote counts
+- [ ] Poll rendered inline in chat: options with vote counts
 - [ ] Tap to vote (one vote per user per poll)
 - [ ] Show results after voting
 
@@ -570,80 +959,41 @@ Phase 1 gives them that reason.
 
 - [ ] Two users can exchange real-time messages
 - [ ] Create a poll, vote, see results update
-- [ ] Commit: `feat: band chat and polls`
+- [ ] Commit: `feat: Step 14 — band chat and polls`
 
 ---
 
-## Step 10 — Performance Mode
+## Step 16 — Performance Mode + Lyrics Viewer
 
-**Why here:** Needs lyrics data on songs and is self-contained once the song catalog is solid.
+**Why here:** Depends on lyrics data added in Step 8.
 
-### Supabase
+### App
 
-- [ ] Add lyrics column to songs:
-  ```sql
-  alter table public.songs add column lyrics text;
-  ```
-
-### App — lyrics editing
-
-- [ ] Add a "Lyrics" section to the song edit screen (`songs/[id].tsx`)
-- [ ] Multi-line text input for lyrics
-- [ ] Save with the rest of the song data
-
-### App — performance mode screen
-
-- [ ] "Performance Mode" button on the song detail screen
+- [ ] "Performance Mode" button on song detail screen
 - [ ] Full-screen view: large text, dark background, no navigation chrome
-- [ ] Auto-scroll: starts scrolling at an adjustable speed
-- [ ] Font size controls: increase / decrease
-- [ ] Tap to pause/resume scroll
-- [ ] Swipe down or back button to exit performance mode
+- [ ] Auto-scroll at adjustable speed
+- [ ] Font size controls (increase / decrease)
+- [ ] Tap to pause/resume scroll; swipe down or back button to exit
 
 ### Test
 
-- [ ] Add lyrics to a song
-- [ ] Open performance mode → text is readable, scroll works
+- [ ] Add lyrics → open performance mode → text readable, scroll works
 - [ ] Adjust font size and scroll speed
-- [ ] Exit cleanly
-- [ ] Commit: `feat: performance mode — lyrics viewer with auto-scroll`
+- [ ] Commit: `feat: Step 15 — performance mode lyrics viewer`
 
 ---
 
-## Step 11 — Promo + Media Tools
+## Step 17 — Promo + Media Tools
 
-**Why last:** These are nice-to-have, not core workflow. Build them on top of a stable app.
+**Why last:** Nice-to-have, not core workflow.
 
-### Supabase
+### App
 
-- [ ] Run `event_rsvp` table SQL (see `schema.md`)
-- [ ] Enable RLS and add policies
-- [ ] Create a Supabase Storage bucket for media assets
-
-### App — RSVP
-
-- [ ] Add RSVP buttons to event detail screen (Yes / No / Maybe)
-- [ ] Show RSVP summary on the event: "3 coming, 1 maybe, 1 no"
-- [ ] View the full RSVP list
-
-### App — shareable event links
-
-- [ ] Generate a public URL for an event (no login required to view)
-- [ ] Web-only route: `app/public/event/[id].tsx` — renders event details publicly
-
-### App — media library
-
-- [ ] Media tab or section within settings
-- [ ] Upload band photos (Supabase Storage)
-- [ ] View uploaded photos in a grid
-
-### App — promo manager
-
-- [ ] Promo screen (under settings): band bio, social links, press kit links
-- [ ] Editable by any band member
+- [ ] Shareable event link (public page, no login required)
+- [ ] Media library: upload + view band photos (Supabase Storage)
+- [ ] Promo manager: band bio, social links, press kit (under Settings)
 
 ### Test
 
-- [ ] RSVP to an event and see the summary update
-- [ ] Share an event link and confirm it opens without login
-- [ ] Commit: `feat: RSVP, shareable events, promo tools`
+- [ ] Share an event link → opens without login
+- [ ] Commit: `feat: Step 16 — promo and media tools`
