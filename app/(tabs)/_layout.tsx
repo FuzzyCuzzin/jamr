@@ -44,6 +44,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: tabIcon('grid-outline', 'grid'),
+        }}
+      />
+      <Tabs.Screen
         name="events"
         options={{
           title: 'Events',

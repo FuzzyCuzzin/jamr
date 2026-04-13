@@ -81,7 +81,7 @@ function RootLayoutContent() {
     } else if (!band) {
       if (!inBandGroup) router.replace('/band/new' as never)
     } else {
-      if (inAuthGroup || inBandGroup) router.replace('/(tabs)/songs')
+      if (inAuthGroup || inBandGroup) router.replace('/(tabs)/dashboard')
     }
   }, [session, band, loading, segments])
 

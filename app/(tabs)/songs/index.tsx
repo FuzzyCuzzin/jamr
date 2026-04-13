@@ -96,6 +96,7 @@ export default function SongsScreen() {
         <FlatList
           data={visible}
           keyExtractor={(item) => item.id}
+          style={styles.flex}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => {
             const s = STATUS_STYLE[item.status] ?? STATUS_STYLE.learning
@@ -162,6 +163,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
   chipText: { fontSize: 13, fontWeight: '500', color: '#6b7280' },
   chipTextActive: { color: '#fff' },
+  flex: { flex: 1 },
   list: { paddingHorizontal: 16, paddingBottom: 100 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
   rowText: { flex: 1 },
