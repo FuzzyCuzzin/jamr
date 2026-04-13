@@ -117,30 +117,63 @@ Status: **already created in Supabase.**
 
 ### songs
 
-The song catalog. Each song belongs to a band.
+The song catalog. Each song belongs to a band. The schema is designed to support
+import-first adding (from Spotify, Apple Music, YouTube) with manual entry as a fallback.
 
 ```sql
 create table public.songs (
   id                uuid primary key default gen_random_uuid(),
   band_id           uuid not null references public.bands(id) on delete cascade,
+
+  -- Core metadata
   title             text not null,
   artist            text,
   key               text,
   bpm               integer,
+  duration_seconds  integer,           -- track length; used for setlist planning and sorting
+
+  -- Status tracking
   status            text not null default 'learning',
                     -- 'learning' | 'ready' | 'performance_ready'
-  status_changed_at timestamptz,  -- set whenever status is updated; used for "songs learned this week"
+  status_changed_at timestamptz,       -- set whenever status changes; used for dashboard delta
+
+  -- Setlist planning
+  energy_level      text default 'medium',
+                    -- 'low' | 'medium' | 'high'
+                    -- helps plan setlist arc: openers, closers, cool-downs
+
+  -- Content
   notes             text,
+  artwork_url       text,              -- album art from import source; shown as thumbnail
+
+  -- Import provenance
+  source_platform   text,              -- 'spotify' | 'apple_music' | 'youtube' | 'manual'
+  source_url        text,              -- original link pasted by the user
+  source_track_id   text,              -- platform track/video ID for future API lookups
+  imported_at       timestamptz,       -- null if added manually
+
+  -- Authorship
   created_by        uuid references public.profiles(id),
   created_at        timestamptz default now(),
   updated_at        timestamptz default now()
 );
 ```
 
-**Add `status_changed_at` to existing table:**
+**Add new columns to existing songs table:**
 ```sql
-alter table public.songs add column if not exists status_changed_at timestamptz;
+alter table public.songs add column if not exists duration_seconds  integer;
+alter table public.songs add column if not exists energy_level      text default 'medium';
+alter table public.songs add column if not exists artwork_url       text;
+alter table public.songs add column if not exists source_platform   text;
+alter table public.songs add column if not exists source_url        text;
+alter table public.songs add column if not exists source_track_id   text;
+alter table public.songs add column if not exists imported_at       timestamptz;
 ```
+
+**Fields deliberately left out (not needed yet):**
+- `tags` — keep notes as free text for now; add a `tags text[]` column or junction table in Phase 3 only if filtering by tag becomes a real need
+- `normalized_title` / `normalized_artist` — not needed until we detect duplicates at import time (Phase 2+)
+- A separate `song_imports` table — overkill; provenance fields inline on songs are sufficient
 
 **Dashboard query — songs learned (ready or better), with weekly delta:**
 ```sql
@@ -156,7 +189,12 @@ where band_id = $band_id
 
 > The app must set `status_changed_at = now()` whenever it updates the `status` field.
 
-Status: **already created. Add status_changed_at column.**
+**Energy level values:** `low` | `medium` | `high`
+- `low` — ballad, cool-down, slow song
+- `medium` — mid-tempo, crowd-warmer
+- `high` — opener, closer, high-energy crowd moment
+
+Status: **already created. Run the ALTER TABLE statements above to add new columns.**
 
 ---
 

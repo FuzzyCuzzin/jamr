@@ -34,6 +34,38 @@ track upcoming events, and see a real-time snapshot of their band on the dashboa
 - [x] Add song form (title, artist, key, BPM, status, notes)
 - [x] Edit and delete song
 
+### Step 3.5 — Songs v2: Import-First Repertoire Manager
+The current Songs experience is functional but manual. This step upgrades it to an
+import-first flow with richer metadata for setlist planning.
+
+**Phase A — Richer metadata (no external APIs)**
+- [ ] Add columns: `duration_seconds`, `energy_level`, `artwork_url`, `source_platform`, `source_url`, `source_track_id`, `imported_at`
+- [ ] Update add/edit song forms to include duration, energy level, artwork URL
+- [ ] Redesign song list row: artwork thumbnail, energy dot, duration
+- [ ] Add sort control: Title, Artist, Recently Added, BPM, Duration, Energy
+- [ ] Add energy level filter (All / Low / Medium / High) alongside existing status filter
+- [ ] Update `seed_songs.sql` to set energy levels on existing catalog
+
+**Phase B — Import from YouTube (no OAuth needed)**
+- [ ] Detect YouTube URL pasted by user (regex match)
+- [ ] Fetch title + channel via YouTube oEmbed endpoint (free, no API key)
+- [ ] Pre-fill title + artist on the review screen
+- [ ] Store `source_platform = 'youtube'`, `source_url`, `source_track_id`, `imported_at`
+- [ ] Fallback to manual entry if fetch fails
+
+**Phase C — Import from Spotify**
+- [ ] Register a Spotify app (Client Credentials flow — no user login required)
+- [ ] Store Spotify Client ID + Secret in Supabase Edge Function (keeps secrets off device)
+- [ ] Parse Spotify track URL → extract track ID
+- [ ] Call Spotify `/tracks/{id}` endpoint via Edge Function → get title, artist, duration, artwork
+- [ ] Pre-fill review screen; store `source_platform = 'spotify'`, `source_track_id`, `artwork_url`
+
+**Phase D — Import from Apple Music**
+- [ ] Parse Apple Music link → extract catalog ID from URL
+- [ ] Call Apple Music API (MusicKit — requires Apple Developer account)
+- [ ] Pre-fill review screen; store `source_platform = 'apple_music'`, `artwork_url`
+- [ ] Note: more complex than Spotify due to Apple token signing; tackle last
+
 ### Step 4 — Setlist Builder ✓
 - [x] Run `setlists` and `setlist_songs` SQL in Supabase
 - [x] Enable RLS and add policies (use get_my_band_ids())

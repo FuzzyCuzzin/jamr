@@ -61,12 +61,74 @@ These are the only features being built in Phase 1. Everything else is future.
 - Future: multiple bands per user, role-based access
 
 ### 3. Song Catalog
-- Add a song: title, artist, key, BPM, status, notes
-- Song statuses: `learning` | `ready` | `performance_ready`
-- View all songs in a list (sorted by title)
-- Filter songs by status
-- Edit a song
-- Delete a song (with confirmation)
+
+Songs is the heart of Jamr. It is an **import-first repertoire manager** — the primary path
+for adding a song is to paste a link from Spotify, Apple Music, or YouTube. Manual entry
+exists as a fallback, not the default.
+
+#### Song statuses
+`learning` | `ready` | `performance_ready`
+
+#### Song metadata
+Each song stores:
+- **Title**, **Artist** — required
+- **Key**, **BPM**, **Duration** (seconds) — optional, useful for setlist planning
+- **Energy Level** — `low` | `medium` | `high`. Used to plan setlist arc (openers, closers, cool-downs)
+- **Status** + **Status Changed At** — tracks when a song moved to ready/performance-ready
+- **Notes** — free text, arrangement cues, member notes
+- **Artwork URL** — album art from the import source; shown as a thumbnail in the list
+- **Source Platform** — `spotify` | `apple_music` | `youtube` | `manual`
+- **Source URL** — the original link used to import the song
+- **Source Track ID** — the platform's track/video ID for future API lookups
+
+#### Add song flow (import-first)
+
+**Entry point:** FAB (+) on the Songs list
+
+**Step 1 — Method picker** ("Add a Song")
+Four options presented as large tappable cards:
+- Paste a Spotify link
+- Paste an Apple Music link
+- Paste a YouTube link
+- Enter manually
+
+**Step 2a — Import** (Spotify / Apple Music / YouTube)
+- Single text input: "Paste your link"
+- "Import" button fetches metadata from the platform API
+- Loading state while fetching
+- On success → pre-fills the review screen
+- On failure → error message + "Enter manually instead" fallback link
+
+**Step 2b — Manual entry**
+Skips import, goes directly to the review screen with all fields empty.
+
+**Step 3 — Review / edit screen**
+- All fields shown and editable: Title*, Artist, Key, BPM, Duration, Energy Level, Status, Notes
+- If imported: Artwork thumbnail + source platform badge shown read-only at top
+- "Save song" → inserts → back to Songs list
+
+#### Sorting options
+Users can sort the song list by:
+- Title A→Z (default)
+- Artist A→Z
+- Recently Added
+- Status
+- Duration (short → long)
+- BPM (low → high)
+- Energy Level
+
+#### Filtering options
+Users can filter by:
+- **Status**: All / Learning / Ready / Performance Ready
+- **Energy Level**: All / Low / Medium / High
+
+#### Song list display
+Each row shows:
+- Artwork thumbnail (if available, else colored initial block)
+- Title + Artist
+- Status badge
+- Energy dot (colored indicator: low=blue, medium=amber, high=red)
+- Duration (if set)
 
 ### 4. Setlist Builder
 - Create a named setlist
@@ -163,9 +225,9 @@ These are the product areas Jamr will cover over time. Phase 1 is the foundation
 - Band member roster with avatars
 
 ### Planning tools
-- Song catalog / repertoire manager
-- Setlist builder with ordering
-- Song details: BPM, key, notes, lyrics, status
+- Song catalog / repertoire manager (import-first)
+- Setlist builder with ordering and energy arc planning
+- Song details: BPM, key, duration, energy level, notes, lyrics, status
 - Shared band calendar
 - Band member availability
 - Rehearsal and gig planning

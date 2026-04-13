@@ -65,6 +65,122 @@ Mark tasks with [x] as you finish them.
 
 ---
 
+## Step 3.5 — Songs v2: Import-First Repertoire Manager
+
+Songs is upgraded from a basic form to an import-first experience with richer metadata.
+Work through Phase A first (no external APIs). Phases B–D add platform integrations.
+
+---
+
+### Phase A — Richer metadata (no external APIs required)
+
+#### Supabase
+
+- [ ] Run the following in the Supabase SQL editor:
+  ```sql
+  alter table public.songs add column if not exists duration_seconds  integer;
+  alter table public.songs add column if not exists energy_level      text default 'medium';
+  alter table public.songs add column if not exists artwork_url       text;
+  alter table public.songs add column if not exists source_platform   text;
+  alter table public.songs add column if not exists source_url        text;
+  alter table public.songs add column if not exists source_track_id   text;
+  alter table public.songs add column if not exists imported_at       timestamptz;
+  ```
+- [ ] Update `sql/schema.sql` to include these columns (already in schema.md)
+
+#### App — song list screen (`songs/index.tsx`)
+
+- [ ] Add sort control (dropdown or horizontal chip row):
+  - Title A→Z (default), Artist A→Z, Recently Added, BPM ↑, Duration ↑, Energy
+- [ ] Add energy filter chips alongside status chips:
+  - All / Low / Medium / High
+- [ ] Redesign song row to show:
+  - Artwork thumbnail (small square, colored initial block if no artwork)
+  - Title + Artist
+  - Status badge + energy dot (colored: low=blue, medium=amber, high=red)
+  - Duration (formatted as `m:ss`) if set
+
+#### App — add song flow (`songs/new.tsx` → redesign)
+
+Replace the current single-screen form with a two-screen import-first flow:
+
+- [ ] **Screen 1 — Method picker** (`songs/add.tsx`)
+  - Four options: Spotify link | Apple Music link | YouTube link | Enter manually
+  - Tapping an import option navigates to `songs/import.tsx` with the platform pre-selected
+  - Tapping "Enter manually" navigates directly to `songs/new.tsx` (the existing form, updated)
+
+- [ ] **Screen 2a — Import screen** (`songs/import.tsx`)
+  - Shows the selected platform label and a text input: "Paste your link"
+  - "Import" button — in Phase A, this is a no-op placeholder that just parses the URL and stores it
+  - Extracts `source_platform`, `source_url`, `source_track_id` from the URL client-side
+  - Navigates to the review screen with those fields pre-filled
+  - "Enter manually instead" link at the bottom
+
+- [ ] **Screen 2b / Review screen** (`songs/new.tsx` — updated)
+  - Add fields to the existing form:
+    - Energy Level picker (Low / Medium / High chips)
+    - Duration input (minutes + seconds, two small inputs side by side)
+    - Artwork URL (text input, shown as preview thumbnail if filled)
+  - If coming from import: show source platform badge read-only at top
+  - On save: write all new fields including `source_platform`, `source_url`, `source_track_id`, `imported_at` (if imported)
+
+#### App — edit song screen (`songs/[id].tsx`)
+
+- [ ] Add the same new fields: Energy Level, Duration, Artwork URL
+- [ ] Show source platform badge read-only if the song was imported
+
+#### Test Phase A
+
+- [ ] Add a song manually with energy level and duration → verify it saves and displays correctly
+- [ ] Paste a Spotify URL → verify source fields are stored, platform badge shown in edit screen
+- [ ] Sort by duration → verify order is correct
+- [ ] Filter by energy High → verify only high-energy songs appear
+- [ ] Commit: `feat: Songs v2 Phase A — richer metadata, sort/filter, import-first UI`
+
+---
+
+### Phase B — YouTube import (free, no API key needed)
+
+- [ ] On the import screen, detect when a YouTube URL is pasted
+- [ ] Call YouTube oEmbed: `https://www.youtube.com/oembed?url={url}&format=json`
+  - Returns: `title`, `author_name` (channel name), `thumbnail_url`
+- [ ] Pre-fill: title → song title, author_name → artist, thumbnail_url → artwork_url
+- [ ] Extract video ID from URL (`?v=` param or `youtu.be/` path) → `source_track_id`
+- [ ] Show loading spinner during fetch; show error + manual fallback on failure
+- [ ] Test: paste a YouTube link → review screen pre-filled → song saved with source fields
+- [ ] Commit: `feat: Songs v2 Phase B — YouTube import via oEmbed`
+
+---
+
+### Phase C — Spotify import (requires Supabase Edge Function)
+
+- [ ] Create a Spotify app at developer.spotify.com (Client Credentials flow)
+- [ ] Create a Supabase Edge Function: `spotify-track`
+  - Input: Spotify track URL or track ID
+  - Uses Client ID + Secret (stored as Supabase secrets, never on device)
+  - Calls `GET /tracks/{id}` on the Spotify API
+  - Returns: title, artist, duration_ms, album artwork URL, track ID
+- [ ] On the import screen: detect Spotify URL → call Edge Function → pre-fill review screen
+- [ ] Store: `source_platform = 'spotify'`, `source_track_id`, `artwork_url`, `duration_seconds`
+- [ ] Test: paste a Spotify track link → metadata fetched → song saved correctly
+- [ ] Commit: `feat: Songs v2 Phase C — Spotify import via Edge Function`
+
+---
+
+### Phase D — Apple Music import (requires Apple Developer account)
+
+- [ ] Parse Apple Music URL → extract catalog ID (format: `.../album/name/{catalog-id}`)
+- [ ] Create a Supabase Edge Function: `apple-music-track`
+  - Requires a MusicKit developer token (JWT signed with Apple private key)
+  - Calls Apple Music API: `GET /v1/catalog/us/songs/{id}`
+  - Returns: title, artist, duration, artwork URL
+- [ ] On the import screen: detect Apple Music URL → call Edge Function → pre-fill review screen
+- [ ] Test: paste an Apple Music link → metadata fetched → song saved correctly
+- [ ] Note: more complex than Spotify — tackle only after Phase C is stable
+- [ ] Commit: `feat: Songs v2 Phase D — Apple Music import via Edge Function`
+
+---
+
 ## Step 4 — Setlist Builder ✓
 
 **Why fourth:** Setlists are only useful once songs exist.
