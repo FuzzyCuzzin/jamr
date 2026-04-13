@@ -65,16 +65,16 @@ Mark tasks with [x] as you finish them.
 
 ---
 
-## Step 4 — Setlist Builder
+## Step 4 — Setlist Builder ✓
 
 **Why fourth:** Setlists are only useful once songs exist.
 
 ### Supabase
 
-- [ ] Run `setlists` table SQL (see `schema.md`)
-- [ ] Run `setlist_songs` table SQL (see `schema.md`)
-- [ ] Enable RLS on both tables
-- [ ] Add 4 policies to each table using `get_my_band_ids()`:
+- [x] Run `setlists` table SQL (see `schema.md`)
+- [x] Run `setlist_songs` table SQL (see `schema.md`)
+- [x] Enable RLS on both tables
+- [x] Add 4 policies to each table using `get_my_band_ids()`:
   ```sql
   alter table public.setlists      enable row level security;
   alter table public.setlist_songs enable row level security;
@@ -126,38 +126,19 @@ Mark tasks with [x] as you finish them.
 
 ### App — screens
 
-- [ ] Replace `app/(tabs)/setlists/index.tsx` — setlists list
-  - Fetch setlists for the current band
-  - Each row: setlist name + song count
-  - "Create setlist" button
-  - Empty state: "No setlists yet"
-
-- [ ] Create `app/(tabs)/setlists/new.tsx` — create setlist
-  - Name input (required)
-  - Save → insert → navigate to setlist detail
-
-- [ ] Create `app/(tabs)/setlists/[id].tsx` — setlist detail
-  - Fetch songs in this setlist ordered by `position`
-  - Each row: position number, title, artist, up/down buttons
-  - Up/down buttons: swap `position` with adjacent song
-  - "Add song" button → navigate to a song picker screen
-  - Remove button per song (with confirmation)
-  - Delete setlist button (with confirmation)
-  - Empty state: "No songs in this setlist yet"
-
-- [ ] Create `app/(tabs)/setlists/add-songs.tsx` — song picker
-  - Shows songs from the catalog not already in this setlist
-  - Tap to add → inserts into `setlist_songs`
-  - Navigate back to setlist detail
+- [x] Replace `app/(tabs)/setlists/index.tsx` — setlists list
+- [x] Create `app/(tabs)/setlists/new.tsx` — create setlist
+- [x] Create `app/(tabs)/setlists/[id].tsx` — setlist detail with up/down reorder, remove, delete
+- [x] Create `app/(tabs)/setlists/add-songs.tsx` — song picker
 
 ### Test
 
-- [ ] Create a setlist
-- [ ] Add songs from the catalog
-- [ ] Reorder with up/down buttons
-- [ ] Remove a song
-- [ ] Delete the setlist
-- [ ] Commit: `feat: Step 4 — setlist builder`
+- [x] Create a setlist
+- [x] Add songs from the catalog
+- [x] Reorder with up/down buttons
+- [x] Remove a song
+- [x] Delete the setlist
+- [x] Commit: `feat: Step 4 — setlist builder`
 
 ---
 

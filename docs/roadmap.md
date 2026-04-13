@@ -34,17 +34,17 @@ track upcoming events, and see a real-time snapshot of their band on the dashboa
 - [x] Add song form (title, artist, key, BPM, status, notes)
 - [x] Edit and delete song
 
-### Step 4 — Setlist Builder
-- [ ] Run `setlists` and `setlist_songs` SQL in Supabase
-- [ ] Enable RLS and add policies (use get_my_band_ids())
-- [ ] Setlists list screen
-- [ ] Create setlist form (name only)
-- [ ] Setlist detail screen — songs in order
-- [ ] Add songs to setlist (pick from catalog)
-- [ ] Move song up / down (updates position)
-- [ ] Remove song from setlist
-- [ ] Delete setlist
-- [ ] Test: create → add songs → reorder → remove → delete
+### Step 4 — Setlist Builder ✓
+- [x] Run `setlists` and `setlist_songs` SQL in Supabase
+- [x] Enable RLS and add policies (use get_my_band_ids())
+- [x] Setlists list screen
+- [x] Create setlist form (name only)
+- [x] Setlist detail screen — songs in order
+- [x] Add songs to setlist (pick from catalog)
+- [x] Move song up / down (updates position)
+- [x] Remove song from setlist
+- [x] Delete setlist
+- [x] Test: create → add songs → reorder → remove → delete
 
 ### Step 5 — Events
 - [ ] Run `events` SQL in Supabase
